@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/getSupabaseBrowser";
+import { getSupabaseBrowser } from "@/lib/SupabaseBrowser";
 
 // inline slug generator
 function slugify(value: string): string {
@@ -20,7 +20,7 @@ type Attribute = {
 };
 
 export default function AttributesPage() {
-  const supabase = getSupabaseBrowser();
+  const supabase = SupabaseBrowser();
 
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [loading, setLoading] = useState(true);

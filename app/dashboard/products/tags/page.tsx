@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/getSupabaseBrowser";
+import { getSupabaseBrowser } from "@/lib/SupabaseBrowser";
 
 // Inline slugify — no missing file, no errors
 function slugify(value: string): string {
@@ -19,7 +19,7 @@ type Tag = {
 };
 
 export default function TagsPage() {
-  const supabase = getSupabaseBrowser();
+  const supabase = SupabaseBrowser();
 
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
