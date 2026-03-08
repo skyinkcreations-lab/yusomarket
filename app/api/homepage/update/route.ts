@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-  
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set() {},
+        remove() {},
+      },
+    }
+  );
+
   const body = await req.json();
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("homepage_settings")
     .update({
       hero_image_url: body.hero_image_url,
