@@ -1,0 +1,326 @@
+/* -------------------------------------------------------
+   GLOBAL RESET
+------------------------------------------------------- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background: #f5f5f7;
+  font-family: "Inter", sans-serif;
+  color: #111827;
+}
+
+/* -------------------------------------------------------
+   DASHBOARD LAYOUT
+------------------------------------------------------- */
+.dashboard-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* -------------------------------------------------------
+   SIDEBAR
+------------------------------------------------------- */
+.sidebar {
+  width: 240px;
+  background-color: #091225;
+  color: #dbe4f0;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  padding: 26px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 32px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  text-decoration: none;
+  color: #cbd5e1;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.sidebar-nav a:hover {
+  color: white;
+  transform: translateX(4px);
+}
+
+.sidebar-icon {
+  width: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: #e34848;
+  color: white;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin-top: 20px;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: #c93333;
+}
+
+/* -------------------------------------------------------
+   MAIN CONTENT
+------------------------------------------------------- */
+.dashboard-content {
+  margin-left: 240px;
+  padding: 50px 60px;
+  width: calc(100% - 240px);
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.page-desc {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+/* Live Store Status pill */
+.dashboard-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e6f0ff;
+  border: 1px solid #bfd6ff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  float: right;
+  margin-top: -48px;
+}
+
+/* -------------------------------------------------------
+   KPI CARDS
+------------------------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  margin-bottom: 40px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  padding: 22px 20px;
+  border-radius: 16px;
+  border: 1px solid #ececec;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.kpi-icon {
+  font-size: 20px;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+.kpi-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.kpi-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.kpi-trend {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kpi-trend--positive {
+  background: #e7f8ed;
+  color: #187944;
+}
+
+.kpi-trend--negative {
+  background: #fde8e8;
+  color: #b91c1c;
+}
+
+/* -------------------------------------------------------
+   QUICK ACTIONS
+------------------------------------------------------- */
+.quick-actions {
+  margin-top: 8px;
+}
+
+.quick-actions h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.quick-actions p {
+  color: #6b7280;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.quick-action-card {
+  display: flex;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid #ececec;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  text-decoration: none;
+  color: #111827;
+  transition: 0.15s ease;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.06);
+}
+
+.quick-action-icon {
+  width: 28px;
+  height: 28px;
+  background: #f4f4ff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #5b21b6;
+}
+
+.quick-action-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quick-action-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-content {
+    margin-left: 0;
+    padding: 20px;
+  }
+  
+  .sidebar {
+    position: relative;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .kpi-grid,
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.account-wrapper {
+  max-width: 720px;
+  margin: 40px auto;
+  text-align: center;
+}
+
+.account-links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.acc-btn {
+  width: 100%;
+  padding: 14px 0;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  text-align: center;
+  transition: 0.2s;
+  color: #6a34f5;
+}
+
+.acc-btn:hover {
+  background: #f9f9f9;
+}
+
+html, body {
+  height: 100%;
+}
