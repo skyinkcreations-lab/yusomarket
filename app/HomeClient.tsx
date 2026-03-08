@@ -162,7 +162,7 @@ function ProductCard({ p, onAddToCart, onQuickView }: ProductCardProps) {
 
           <button
   className="modern-cart-btn"
-  onClick={() => onAddToCart(p, null)}
+  onClick={() => onAddToCart(p)}
   type="button"
   aria-label="Add to cart"
 >
