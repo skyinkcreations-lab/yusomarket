@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/SupabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 // Inline slugify — no missing file, no errors
 function slugify(value: string): string {

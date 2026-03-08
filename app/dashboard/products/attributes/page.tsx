@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/SupabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 // inline slug generator
 function slugify(value: string): string {
