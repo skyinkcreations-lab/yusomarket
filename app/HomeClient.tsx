@@ -27,7 +27,7 @@ function formatAUD(n: number) {
   }).format(Number(n));
 }
 
-function useAutoScroll(ref: React.RefObject<HTMLDivElement>) {
+function useAutoScroll(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const container = ref.current;
     if (!container) return;
