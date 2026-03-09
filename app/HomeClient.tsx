@@ -1020,11 +1020,13 @@ color: "#385fa2",
                       {formatAUD(selectedVariant?.price ?? quickViewProduct.price)}
                     </span>
                     {(selectedVariant?.originalPrice ?? quickViewProduct.originalPrice) && (
-  <span className="quickview-original">
-    {formatAUD(
-      selectedVariant?.originalPrice ?? quickViewProduct.originalPrice
-    )}
-  </span>
+<span className="quickview-original">
+  {formatAUD(
+    selectedVariant?.originalPrice ??
+    quickViewProduct.originalPrice ??
+    0
+  )}
+</span>
 )}
                   </div>
 
