@@ -15,6 +15,7 @@ type ProductRow = {
   price: number;
   original_price: number | null;
   thumbnail_url: string | null;
+  created_at: string;
   vendor: {
     id: string;
     store_name: string;
@@ -55,6 +56,7 @@ function mapProductRow(p: ProductRow): Product {
       p.original_price !== null ? Number(p.original_price) : null,
     vendorName: p.vendor?.store_name ?? null,
     vendorSlug: p.vendor?.slug ?? null,
+    created_at: p.created_at,
 
     variants: p.variants?.map(v => ({
   id: v.id,
@@ -97,12 +99,13 @@ const categories: CategoryPill[] = [
 const { data: productRowsRaw, error } = await supabase
   .from("products")
   .select(`
-    id,
-    name,
-    slug,
-    price,
-    original_price,
-    thumbnail_url,
+  id,
+  name,
+  slug,
+  price,
+  original_price,
+  thumbnail_url,
+  created_at,
     vendor:vendors (
       id,
       store_name,

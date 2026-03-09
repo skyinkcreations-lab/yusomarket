@@ -21,16 +21,14 @@ export type Product = {
   slug: string | null;
   thumbnailUrl: string | null;
 
-  price: number;                // fallback
+  price: number;
   originalPrice: number | null;
 
-  variants?: ProductVariant[];  // 🔑 ADD THIS
+  variants?: ProductVariant[];
 
   vendorName: string | null;
   vendorSlug: string | null;
 };
-
-
 
 export type VendorCardData = {
   id: string;
