@@ -9,9 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function ProductPage({
   params,
 }: {
-  params: { slug: string } | Promise<{ slug: string }>;
+  params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  console.log("URL SLUG:", slug);
+
   const supabase = await supabaseServer();
 
   // -------------------------------
@@ -30,20 +32,20 @@ const { data: bySlug, error: bySlugErr } = await supabase
   thumbnail_url,
   gallery_urls,
   vendor_id,
-  vendors (
+vendors (
   id,
   slug,
   store_name,
   store_logo,
-  created_at,
-  rating,
-  reviews,
-  sold
+  created_at
 )
 `)
   .eq("slug", slug)
   .maybeSingle();
   
+  console.log("SUPABASE RESULT:", bySlug);
+console.log("SUPABASE ERROR:", bySlugErr);
+
 let product = bySlug
   ? {
       ...bySlug,
@@ -72,10 +74,7 @@ const { data: byId } = await supabase
   slug,
   store_name,
   store_logo,
-  created_at,
-  rating,
-  reviews,
-  sold
+  created_at
 )
   `)
   .eq("id", slug)

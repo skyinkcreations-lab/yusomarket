@@ -3,6 +3,11 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 
+
+type ProductClientProps = {
+  serverData: any;
+};
+
 type Vendor = {
   id: string;
   slug: string;
@@ -82,7 +87,7 @@ function normalizeAttributes(attr: any) {
   return obj;
 }
 
-export default function ProductClient({ serverData }: Props) {
+export default function ProductClient({ serverData }: ProductClientProps) {
   const { product, regularPrice, salePrice, mainImage, gallery, attributeMap, reviews } =
   serverData;
 
@@ -99,13 +104,16 @@ const [submittingReview,setSubmittingReview] = useState(false);
 const [adding, setAdding] = useState(false);
 
   /** defaults for option selectors */
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
-    const defaults: Record<string, string> = {};
-    Object.entries(attributeMap || {}).forEach(([name, values]) => {
-      if (values && values.length > 0) defaults[name] = values[0]!;
-    });
-    return defaults;
+const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+  const defaults: Record<string, string> = {};
+
+  Object.entries(attributeMap || {}).forEach(([name, values]) => {
+    const vals = values as string[];
+    if (vals.length > 0) defaults[name] = vals[0];
   });
+
+  return defaults;
+});
 
 const displayImage =
   activeImage ||
@@ -128,15 +136,20 @@ const galleryImages = useMemo(() => {
 }, [gallery, mainImage, product.main_image, product.thumbnail_url]);
 
 
-  const avgRating = useMemo(() => {
-    if (!reviews?.length) return 0;
-    return reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length;
-  }, [reviews]);
+const avgRating = useMemo(() => {
+  if (!reviews?.length) return 0;
+
+  return reviews.reduce(
+    (sum: number, r: Review) => sum + (r.rating || 0),
+    0
+  ) / reviews.length;
+
+}, [reviews]);
 
 const soldCount = useMemo(() => {
   const hash = product.id
     .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    .reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
 
   const base = (hash % 800) + 120;
 
@@ -150,22 +163,22 @@ useEffect(() => {
 }, []);
 
   /** 👇 prepare variation data */
-  const parsedVariations = useMemo(
-    () =>
-      (serverData.variations || []).map((v) => ({
-        ...v,
-        attributes: normalizeAttributes(v.attributes),
-      })),
-    [serverData.variations]
-  );
+const parsedVariations = useMemo(
+  () =>
+    (serverData.variations || []).map((v: Variation) => ({
+      ...v,
+      attributes: normalizeAttributes(v.attributes),
+    })),
+  [serverData.variations]
+);
 
   /** 👇 find matching variant for chosen options */
   const selectedVariant = useMemo(() => {
     if (!parsedVariations.length) return null;
 
-    return parsedVariations.find((v) =>
-      Object.entries(v.attributes).every(([k, val]) => selectedOptions[k] === val)
-    );
+    return parsedVariations.find((v: Variation) =>
+  Object.entries(v.attributes).every(([k, val]) => selectedOptions[k] === val)
+);
   }, [parsedVariations, selectedOptions]);
 
   /** 👇 true price (variant > salePrice > regularPrice) */
@@ -407,35 +420,39 @@ async function handleAddToCart() {
                 {/* VARIATIONS */}
                 <div className="options-wrap">
                   {hasAttributes ? (
-                    Object.entries(attributeMap).map(([group, values]) => (
-                      <div className="option-group" key={group}>
-                        <div className="option-label-row">
-                          <span className="option-label">{group}</span>
-                          {selectedOptions[group] && (
-                            <span className="option-selected">
-                              {selectedOptions[group]}
-                            </span>
-                          )}
-                        </div>
-                        <div className="option-pills">
-                          {values.map((v) => {
-                            const isActive = selectedOptions[group] === v;
-                            return (
-                              <button
-                                key={v}
-                                type="button"
-                                className={
-                                  "option-pill" + (isActive ? " option-pill--active" : "")
-                                }
-                                onClick={() => handleSelectOption(group, v)}
-                              >
-                                {v}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
+Object.entries(attributeMap).map(([group, values]) => {
+  const vals = values as string[];
+
+  return (
+    <div className="option-group" key={group}>
+      <div className="option-label-row">
+        <span className="option-label">{group}</span>
+        {selectedOptions[group] && (
+          <span className="option-selected">{selectedOptions[group]}</span>
+        )}
+      </div>
+
+      <div className="option-pills">
+        {vals.map((v: string) => {
+          const isActive = selectedOptions[group] === v;
+
+          return (
+            <button
+              key={v}
+              type="button"
+              className={
+                "option-pill" + (isActive ? " option-pill--active" : "")
+              }
+              onClick={() => handleSelectOption(group, v)}
+            >
+              {v}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+})
                   ) : (
                     <div className="option-group">
                       <div className="option-label-row">
@@ -679,31 +696,29 @@ Submit review
                       No reviews yet. Be the first to share your experience.
                     </p>
                   ) : (
-                    <div className="reviews-list">
-                      {reviews.map((r) => (
-                        <article key={r.id} className="review-card">
-                          <div className="review-header">
-                            <div className="stars small">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <span
-                                  key={i}
-                                  className={
-                                    i < r.rating ? "star star-on" : "star"
-                                  }
-                                >
-                                  ★
-                                </span>
-                              ))}
-                            </div>
-                            <h4 className="review-title">{r.title}</h4>
-                          </div>
-                          <p className="review-body">{r.content}</p>
-                          <p className="review-meta">
-                            {new Date(r.created_at).toLocaleDateString()}
-                          </p>
-                        </article>
-                      ))}
-                    </div>
+<div className="reviews-list">
+  {reviews.map((r: Review) => (
+    <article key={r.id} className="review-card">
+      <div className="review-header">
+        <div className="stars small">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span
+              key={i}
+              className={i < r.rating ? "star star-on" : "star"}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+        <h4 className="review-title">{r.title}</h4>
+      </div>
+      <p className="review-body">{r.content}</p>
+      <p className="review-meta">
+        {new Date(r.created_at).toLocaleDateString()}
+      </p>
+    </article>
+  ))}
+</div>
                   )}
                 </div>
               )}
