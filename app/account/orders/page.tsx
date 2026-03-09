@@ -226,6 +226,17 @@ const containerStyle = {
   margin: "0 auto",
 };
 
+const titleStyle = {
+  fontSize: 22,
+  fontWeight: 700,
+  marginBottom: 6,
+};
+
+const subStyle = {
+  fontSize: 14,
+  color: "#64748b",
+};
+
 const gridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))",
