@@ -1077,7 +1077,7 @@ color: "#385fa2",
                   <div className="quickview-actions">
                     <button
   className="quickview-add"
-  disabled={quickViewProduct.variants?.length > 0 && !selectedVariantId}
+  disabled={(quickViewProduct.variants?.length ?? 0) > 0 && !selectedVariantId}
   onClick={() => {
     handleAddToCart(quickViewProduct, selectedVariantId);
     setQuickViewProduct(null);
