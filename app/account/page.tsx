@@ -294,7 +294,7 @@ border:
   );
 }
 
-function premiumCard(): React.CSSProperties {
+function premiumCard(accent: string): React.CSSProperties {
   return {
     background: "linear-gradient(180deg, #ffffff 0%, #fafbff 100%)",
     padding: "34px 34px",

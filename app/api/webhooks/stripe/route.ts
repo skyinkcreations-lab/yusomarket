@@ -82,10 +82,8 @@ export async function POST(req: Request) {
         return sum + price * Number(item.quantity ?? 0);
       }, 0);
 
-      const shippingMethod =
-        session.payment_intent_data?.metadata?.shipping_method ??
-        session.metadata?.shipping_method ??
-        "standard";
+const shippingMethod =
+  session.metadata?.shipping_method ?? "standard";
 
       const shippingCost = shippingMethod === "express" ? 15 : 8;
       const tax = Math.round(subtotal * 0.1 * 100) / 100;

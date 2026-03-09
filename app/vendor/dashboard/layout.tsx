@@ -1,4 +1,8 @@
-export default function VendorDashboardLayout({ children }) {
+export default function VendorDashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div
       style={{

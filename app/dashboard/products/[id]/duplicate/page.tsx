@@ -156,7 +156,7 @@ export default function DuplicateProductPage() {
             <input
               style={inputStyle}
               value={stock}
-              onChange={(e) => setStock(e.target.value)}
+              onChange={(e) => setStock(parseInt(e.target.value) || 0)}
             />
           </div>
 

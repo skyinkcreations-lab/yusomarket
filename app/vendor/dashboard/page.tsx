@@ -282,39 +282,35 @@ const { count: storeViewCount } = await supabase
             gap: 26,
           }}
         >
-          <DashboardCard
-            title="Store Details"
-            description="Brand identity, logos, description and storefront configuration."
-            icon={<StoreIcon size={28} />}
-            accentColor="#6b3ce9"
-            background="white"
-            href="/vendor/settings"
-          />
+<DashboardCard
+  title="Store Details"
+  description="Brand identity, logos, description and storefront configuration."
+  icon={<StoreIcon size={28} />}
+  accentColor="#6b3ce9"
+  href="/vendor/settings"
+/>
 
-          <DashboardCard
-            title="Products"
-            description="Create new listings, manage inventory, update pricing."
-            icon={<PackageIcon size={28} />}
-            accentColor="#4f81ff"
-            background="white"
-            href="/vendor/products"
-          />
+<DashboardCard
+  title="Products"
+  description="Create new listings, manage inventory, update pricing."
+  icon={<PackageIcon size={28} />}
+  accentColor="#4f81ff"
+  href="/vendor/products"
+/>
 
-          <DashboardCard
-            title="Orders"
-            description="Fulfillment pipeline, shipping, payment tracking and analytics."
-            icon={<ClipboardListIcon size={28} />}
-            accentColor="#00c199"
-            background="white"
-            href="/vendor/orders"
-          />
+<DashboardCard
+  title="Orders"
+  description="Fulfillment pipeline, shipping, payment tracking and analytics."
+  icon={<ClipboardListIcon size={28} />}
+  accentColor="#00c199"
+  href="/vendor/orders"
+/>
 
-          <DashboardCard
+<DashboardCard
   title="View Storefront"
   description="See how customers experience your public store."
   icon={<MonitorSmartphoneIcon size={28} />}
   accentColor="#ff6b4a"
-  background="white"
   href={`/vendors/${vendor.slug}`}
 />
 

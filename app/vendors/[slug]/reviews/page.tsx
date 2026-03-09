@@ -258,9 +258,9 @@ export default function VendorReviewsPage() {
               </p>
 
               {/* Images */}
-              {review.images?.length > 0 && (
+              {(review.images?.length ?? 0) > 0 && (
                 <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                  {review.images.map((img) => (
+                  {review.images?.map((img) => (
                     <img
                       key={img}
                       src={img}

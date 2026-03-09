@@ -19,7 +19,7 @@ type Tag = {
 };
 
 export default function TagsPage() {
-  const supabase = SupabaseBrowser();
+  const supabase = supabaseBrowser();
 
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);

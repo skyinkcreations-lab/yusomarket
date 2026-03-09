@@ -30,68 +30,67 @@ const { data: bySlug, error: bySlugErr } = await supabase
   thumbnail_url,
   gallery_urls,
   vendor_id,
-    vendors (
-      id,
-      slug,
-      store_name,
-      store_logo,
-      created_at
-    )
-  `)
+  vendors (
+  id,
+  slug,
+  store_name,
+  store_logo,
+  created_at,
+  rating,
+  reviews,
+  sold
+)
+`)
   .eq("slug", slug)
   .maybeSingle();
   
 let product = bySlug
   ? {
       ...bySlug,
-      vendor: bySlug.vendors || null,
-      vendor_name: bySlug.vendors?.store_name || null,
+      vendor: bySlug.vendors?.[0] ?? null,
+      vendor_name: bySlug.vendors?.[0]?.store_name ?? null,
       main_image: bySlug.thumbnail_url || null,
     }
   : null;
 
-if (product) {
-  delete product.vendors;
-}
-
-  if (!product) {
-    const { data: byId } = await supabase
-      .from("products")
-      .select(
-        `
-        id,
-        name,
-        slug,
-        status,
-        price,
-        original_price,
-        description,
-        thumbnail_url,
-        vendor_id,
-        vendors (
+if (!product) {
+const { data: byId } = await supabase
+  .from("products")
+  .select(`
+    id,
+    name,
+    slug,
+    status,
+    price,
+    original_price,
+    description,
+    thumbnail_url,
+    gallery_urls,
+    vendor_id,
+    vendors (
   id,
   slug,
   store_name,
   store_logo,
-  created_at
+  created_at,
+  rating,
+  reviews,
+  sold
 )
-      `
-      )
-      .eq("id", slug)
-      .maybeSingle();
+  `)
+  .eq("id", slug)
+  .maybeSingle();
 
-    if (byId) {
-if (byId) {
-  product = {
-    ...byId,
-    vendor: byId.vendors || null,
-    vendor_name: byId.vendors?.store_name || null,
-    main_image: byId.thumbnail_url || null,
-    gallery_urls: byId.gallery_urls || [],
-  };
-}
-    }
+  if (byId) {
+    product = {
+      ...byId,
+      vendor: byId.vendors?.[0] ?? null,
+      vendor_name: byId.vendors?.[0]?.store_name ?? null,
+      main_image: byId.thumbnail_url || null,
+      gallery_urls: (byId as any).gallery_urls || [],
+    };
   }
+}
 
   if (!product) {
     return (
@@ -108,9 +107,9 @@ if (byId) {
   // -------------------------------
   // REVIEWS
   // -------------------------------
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select(`id, user_id, rating, title, content, created_at`)
+const { data: reviews } = await supabase
+  .from("reviews")
+  .select(`id, product_id, user_id, rating, title, content, created_at`)
     .eq("product_id", product.id)
     .order("created_at", { ascending: false })
     .limit(10);

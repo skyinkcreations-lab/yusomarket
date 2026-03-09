@@ -20,13 +20,13 @@ type ProductRow = {
     id: string;
     store_name: string;
     slug: string | null;
-  } | null;
+  }[] | null;
   variants?: {
-  id: string;
-  title: string;
-  regular_price: number;
-  sale_price: number | null;
-}[];
+    id: string;
+    title: string;
+    regular_price: number;
+    sale_price: number | null;
+  }[];
 };
 
 
@@ -54,8 +54,8 @@ function mapProductRow(p: ProductRow): Product {
     price: Number(p.price),
     originalPrice:
       p.original_price !== null ? Number(p.original_price) : null,
-    vendorName: p.vendor?.store_name ?? null,
-    vendorSlug: p.vendor?.slug ?? null,
+vendorName: p.vendor?.[0]?.store_name ?? null,
+vendorSlug: p.vendor?.[0]?.slug ?? null,
     created_at: p.created_at,
 
     variants: p.variants?.map(v => ({

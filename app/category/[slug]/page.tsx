@@ -112,7 +112,7 @@ useEffect(() => {
         .select("product_id")
         .eq("tag_id", tagRow.id);
 
-      productIds = tagLinks?.map(l => l.product_id) || [];
+      productIds = tagLinks?.map((l: { product_id: string }) => l.product_id) || [];
     } else {
       // CATEGORY VIEW
       const { data: categoryLinks } = await supabase
@@ -120,7 +120,7 @@ useEffect(() => {
         .select("product_id")
         .eq("category_id", category.id);
 
-      productIds = categoryLinks?.map(l => l.product_id) || [];
+      productIds = categoryLinks?.map((l: { product_id: string }) => l.product_id) || [];
     }
 
     if (productIds.length === 0) {
@@ -724,7 +724,7 @@ const visibleBrands = brands.filter(b =>
 .yuso-products {
   align-items: stretch;
 }
-  
+
 `}</style>
     </>
   );

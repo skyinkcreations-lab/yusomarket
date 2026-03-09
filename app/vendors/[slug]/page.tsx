@@ -514,7 +514,7 @@ onClick={async (e) => {
 )}
 </div>
 
-{quickViewProduct.variants?.length > 0 && (
+{(quickViewProduct.variants?.length ?? 0) > 0 && (
   <div style={{ marginBottom: 14 }}>
     <label
       style={{
@@ -532,11 +532,11 @@ onClick={async (e) => {
   value={selectedVariantId ?? ""}
   onChange={(e) => setSelectedVariantId(e.target.value)}
 >
-      {quickViewProduct.variants.map((variant) => (
-<option key={variant.id} value={variant.id}>
-  {variant.title}
-</option>
-      ))}
+{quickViewProduct.variants?.map((variant) => (
+  <option key={variant.id} value={variant.id}>
+    {variant.title ?? "Option"}
+  </option>
+))}
     </select>
   </div>
 )}
@@ -545,7 +545,7 @@ onClick={async (e) => {
 
   <button
     className="quickview-add"
-    disabled={quickViewProduct.variants?.length > 0 && !selectedVariantId}
+    disabled={(quickViewProduct.variants?.length ?? 0) > 0 && !selectedVariantId}
 onClick={async () => {
 
   try {
@@ -561,12 +561,11 @@ const res = await fetch("/api/cart/add", {
   }),
 });
 
-const data = await res.json();
+await res.json();
 
-setCartCount(data.cartCount);
 window.dispatchEvent(new Event("cart:updated"));
 
-    setQuickViewProduct(null);
+setQuickViewProduct(null);
 
   } catch (err) {
     console.error("Add to cart error:", err);

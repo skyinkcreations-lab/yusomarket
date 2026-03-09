@@ -3,8 +3,9 @@
 import Header from "@/app/_components/Header";
 import Footer from "@/app/_components/Footer";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Product, ProductVariant } from "../pageData";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,11 +31,11 @@ function normalizeSearch(str: string) {
     .trim();
 }
 
-function productHref(p: any) {
+function productHref(p: Product) {
   return `/product/${slugOrId(p.id, p.slug ?? null)}`;
 }
 
-function vendorHref(p: any) {
+function vendorHref(p: Product) {
   return p.vendorSlug ? `/vendors/${p.vendorSlug}` : "/vendors";
 }
 
@@ -43,9 +44,9 @@ function vendorHref(p: any) {
 ================================= */
 
 type ProductCardProps = {
-  p: any;
-  onAddToCart: (p: any) => void;
-  onQuickView: (p: any) => void;
+  p: Product;
+  onAddToCart: (p: Product) => void;
+  onQuickView: (p: Product) => void;
 };
 
 function ProductCard({ p, onAddToCart, onQuickView }: ProductCardProps) {
@@ -139,8 +140,10 @@ export default function SearchPage() {
   const [list, setList] = useState<any[]>([]);
   const [query, setQuery] = useState("");
 
-  const [quickViewProduct, setQuickViewProduct] = useState<any | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+const toastTimeout = useRef<number | null>(null);
 
   const [toast, setToast] = useState<{
   show: boolean;
@@ -171,17 +174,17 @@ useEffect(() => {
   load();
 }, []);
 
-  const selectedVariant = useMemo(() => {
+  const selectedVariant = useMemo<ProductVariant | null>(() => {
 
     if (!quickViewProduct?.variants?.length) return null;
 
     return quickViewProduct.variants.find(
-      (v: any) => v.id === selectedVariantId
-    ) ?? null;
+  (v: ProductVariant) => v.id === selectedVariantId
+) ?? null;
 
   }, [quickViewProduct, selectedVariantId]);
 
-  const handleQuickView = (product: any) => {
+  const handleQuickView = (product: Product) => {
     setQuickViewProduct(product);
     setSelectedVariantId(product?.variants?.[0]?.id ?? null);
   };
@@ -189,13 +192,16 @@ useEffect(() => {
   const showToast = (message: string, type: "success" | "error" = "success") => {
   setToast({ show: true, message, type });
 
-  window.clearTimeout((showToast as any)._timeout);
-  (showToast as any)._timeout = window.setTimeout(() => {
-    setToast((prev) => ({ ...prev, show: false }));
-  }, 2200);
+if (toastTimeout.current) {
+  clearTimeout(toastTimeout.current);
+}
+
+toastTimeout.current = window.setTimeout(() => {
+  setToast(prev => ({ ...prev, show: false }));
+}, 2200);
 };
 
-const handleAddToCart = async (product: any, variantId: string | null) => {
+const handleAddToCart = async (product: Product, variantId: string | null) => {
   try {
     const res = await fetch("/api/cart/add", {
       method: "POST",
@@ -273,10 +279,10 @@ const handleAddToCart = async (product: any, variantId: string | null) => {
       vendorName: product.vendor_name,
       vendorSlug: product.vendor_slug,
       variants: product.variants?.map((v: any) => ({
-        ...v,
-        label: v.label ?? v.title,
-        originalPrice: v.original_price,
-      })),
+  ...v,
+  label: v.label ?? v.title,
+  originalPrice: v.original_price,
+}))
     }}
     onAddToCart={(p) => handleAddToCart(p, null)}
     onQuickView={handleQuickView}
@@ -340,11 +346,13 @@ const handleAddToCart = async (product: any, variantId: string | null) => {
                       {formatAUD(selectedVariant?.price ?? quickViewProduct.price)}
                     </span>
                     {(selectedVariant?.originalPrice ?? quickViewProduct.originalPrice) && (
-  <span className="quickview-original">
-    {formatAUD(
-      selectedVariant?.originalPrice ?? quickViewProduct.originalPrice
-    )}
-  </span>
+<span className="quickview-original">
+  {formatAUD(
+    selectedVariant?.originalPrice ??
+    quickViewProduct.originalPrice ??
+    0
+  )}
+</span>
 )}
                   </div>
 
@@ -381,7 +389,7 @@ const handleAddToCart = async (product: any, variantId: string | null) => {
         Select an option
       </option>
 
-      {quickViewProduct.variants.map((variant) => (
+      {quickViewProduct.variants.map((variant: ProductVariant) => (
         <option key={variant.id} value={variant.id}>
           {variant.label}
         </option>
@@ -393,15 +401,15 @@ const handleAddToCart = async (product: any, variantId: string | null) => {
 
 
                   <div className="quickview-actions">
-                    <button
+<button
   className="quickview-add"
-  disabled={quickViewProduct.variants?.length > 0 && !selectedVariantId}
-onClick={async () => {
-  const ok = await handleAddToCart(quickViewProduct, selectedVariantId);
-  if (ok) {
-    setQuickViewProduct(null);
-  }
-}}
+  disabled={(quickViewProduct.variants?.length ?? 0) > 0 && !selectedVariantId}
+  onClick={async () => {
+    const ok = await handleAddToCart(quickViewProduct, selectedVariantId);
+    if (ok) {
+      setQuickViewProduct(null);
+    }
+  }}
 >
   + Add to cart
 </button>

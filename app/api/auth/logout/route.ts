@@ -1,6 +1,7 @@
 // app/api/auth/logout/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +17,13 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name) {
+          get(name: string) {
             return request.cookies.get(name)?.value;
           },
-          set(name, value, options) {
+          set(name: string, value: string, options: CookieOptions) {
             response.cookies.set(name, value, options);
           },
-          remove(name, options) {
+          remove(name: string, options: CookieOptions) {
             response.cookies.set(name, "", {
               ...options,
               maxAge: 0,
@@ -34,14 +35,16 @@ export async function POST(request: NextRequest) {
 
     await supabase.auth.signOut();
 
-    // 🚨 kill Supabase auth cookie
+    // kill Supabase auth cookie
     response.cookies.set(
-      `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL!.split(".")[0].split("//")[1]}-auth-token`,
+      `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL!
+        .split(".")[0]
+        .split("//")[1]}-auth-token`,
       "",
       { path: "/", maxAge: 0 }
     );
 
-    // 🚨 kill cart cookie so guest gets a NEW cart
+    // kill cart cookie
     response.cookies.set("cart_id", "", {
       path: "/",
       maxAge: 0,

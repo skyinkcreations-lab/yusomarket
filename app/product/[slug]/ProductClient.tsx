@@ -311,10 +311,10 @@ async function handleAddToCart() {
                 (isActive ? " gallery-thumb--active" : "")
               }
               onClick={() => {
-  setActiveImage(img);
+  setActiveImage(img ?? null);
 }}
             >
-              <img src={img} alt="" />
+              <img src={img ?? undefined} alt="" />
             </button>
           );
         })}

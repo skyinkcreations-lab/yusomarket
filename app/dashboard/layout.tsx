@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,7 +12,11 @@ import {
   FaCog,
 } from "react-icons/fa";
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const router = useRouter();
 
   return (

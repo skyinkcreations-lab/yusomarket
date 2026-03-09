@@ -20,7 +20,7 @@ type Attribute = {
 };
 
 export default function AttributesPage() {
-  const supabase = SupabaseBrowser();
+  const supabase = supabaseBrowser();
 
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [loading, setLoading] = useState(true);

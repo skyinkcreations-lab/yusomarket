@@ -1,11 +1,18 @@
 // Protect vendor routes
 
+import type { ReactNode } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
-export default async function VendorLayout({ children }) {
+export default async function VendorLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 

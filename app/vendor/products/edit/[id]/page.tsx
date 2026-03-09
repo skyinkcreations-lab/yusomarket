@@ -244,8 +244,13 @@ const [{ data: pc }, { data: pt }] = await Promise.all([
 ]);
 
 
-setSelectedCategoryIds(pc?.map((x) => x.category_id) ?? []);
-setSelectedTagIds(pt?.map((x) => x.tag_id) ?? []);
+setSelectedCategoryIds(
+  pc?.map((x: { category_id: string }) => x.category_id) ?? []
+);
+
+setSelectedTagIds(
+  pt?.map((x: { tag_id: string }) => x.tag_id) ?? []
+);
 setSelectedBrandId(product.brand_id ?? null);
 setSelectedShippingProfileId(
   product.shipping_profile_id ? Number(product.shipping_profile_id) : null
