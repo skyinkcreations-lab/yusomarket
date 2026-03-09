@@ -24,6 +24,8 @@ export type Product = {
   price: number;
   originalPrice: number | null;
 
+  created_at: string;   // ADD THIS
+
   variants?: ProductVariant[];
 
   vendorName: string | null;
