@@ -3,51 +3,90 @@ import { createClient } from "@supabase/supabase-js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error("Missing Supabase environment variables");
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const email = body?.email?.toLowerCase().trim();
 
-  const { email } = await req.json();
+    if (!email) {
+      return Response.json(
+        { success: false, error: "Email required" },
+        { status: 400 }
+      );
+    }
 
-  const { data, error } = await supabase.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: {
-      redirectTo: "https://www.yusomarket.com/reset-password",
-    },
-  });
+    // Generate reset link from Supabase
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: {
+        redirectTo: `${siteUrl}/reset-password`,
+      },
+    });
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 400 });
+    // Prevent email enumeration attacks
+    if (error || !data?.properties?.action_link) {
+      return Response.json({ success: true });
+    }
+
+    const resetLink = data.properties.action_link;
+
+    // Send reset email via Resend
+    await resend.emails.send({
+      from: "YusoMarket <support@yusomarket.com>",
+      to: email,
+      subject: "Reset your YusoMarket password",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto">
+
+          <h2 style="color:#111;">Reset your password</h2>
+
+          <p>You requested a password reset for your YusoMarket account.</p>
+
+          <p>Click the button below to set a new password.</p>
+
+          <a 
+            href="${resetLink}"
+            style="
+              display:inline-block;
+              margin-top:20px;
+              padding:12px 18px;
+              background:#fc8700;
+              color:#fff;
+              border-radius:6px;
+              text-decoration:none;
+              font-weight:bold;
+            "
+          >
+            Reset Password
+          </a>
+
+          <p style="margin-top:25px;font-size:13px;color:#666;">
+            If you didn't request this, you can safely ignore this email.
+          </p>
+
+        </div>
+      `,
+    });
+
+    return Response.json({ success: true });
+
+  } catch (error) {
+    console.error("Password reset error:", error);
+
+    return Response.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
-
-  const resetLink = data.properties.action_link;
-
-  await resend.emails.send({
-    from: "YusoMarket <support@yusomarket.com>",
-    to: email,
-    subject: "Reset your password",
-    html: `
-      <h2>Reset your password</h2>
-      <p>You requested a password reset.</p>
-
-      <a href="${resetLink}" 
-         style="
-         background:#fc8700;
-         padding:12px 18px;
-         color:white;
-         border-radius:6px;
-         text-decoration:none;
-         display:inline-block;">
-         Reset Password
-      </a>
-
-      <p>If you didn't request this, ignore this email.</p>
-    `,
-  });
-
-  return Response.json({ success: true });
 }
