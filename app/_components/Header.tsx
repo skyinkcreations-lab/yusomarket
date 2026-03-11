@@ -136,10 +136,26 @@ const loadCartCount = useCallback(async () => {
 
   /** Auth sync */
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase.auth.getSession();
-      setAuthUser(data.session?.user || null);
-    }
+async function load() {
+  const { data } = await supabase.auth.getSession();
+
+  const session = data.session;
+
+  if (!session) {
+    setAuthUser(null);
+    return;
+  }
+
+  const isRecovery = !!session.user?.recovery_sent_at;
+
+  // treat recovery sessions as logged OUT in the UI
+  if (isRecovery) {
+    setAuthUser(null);
+    return;
+  }
+
+  setAuthUser(session.user);
+}
 
     load();
 
