@@ -13,6 +13,7 @@ export default function VendorSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [securitySaving, setSecuritySaving] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   // Storefront
   const [storeName, setStoreName] = useState("");
@@ -25,9 +26,17 @@ export default function VendorSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Logo ONLY (banner completely removed)
+  // Logo ONLY
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+
+  // Stripe
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+
+  const [stripeChargesEnabled, setStripeChargesEnabled] = useState(false);
+const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
+const [stripeDetailsSubmitted, setStripeDetailsSubmitted] = useState(false);
+const [disconnectLoading, setDisconnectLoading] = useState(false);
 
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -35,37 +44,62 @@ export default function VendorSettingsPage() {
   /* -------------------------------------------
      LOAD USER + VENDOR
   ------------------------------------------- */
-  useEffect(() => {
-    async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+useEffect(() => {
+  async function loadData() {
+    setLoading(true);
 
-      setLoginEmail(user.email || "");
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      const { data: vendor } = await supabase
-        .from("vendors")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!vendor) {
-        router.push("/sell");
-        return;
-      }
-
-      setStoreName(vendor.store_name || "");
-      setStoreDescription(vendor.store_description || "");
-      setSupportEmail(vendor.support_email || "");
-      setLogoPreview(vendor.store_logo || null);
-
-      setLoading(false);
+    if (!user) {
+      router.push("/login");
+      return;
     }
 
-    loadData();
-  }, []);
+    setLoginEmail(user.email || "");
+
+    /*
+    IMPORTANT: Sync Stripe status first
+    */
+    await fetch("/api/vendor/stripe/onboard", {
+      method: "POST",
+    });
+
+    /*
+    Now load vendor with fresh data
+    */
+    const { data: vendor, error: vendorError } = await supabase
+      .from("vendors")
+      .select(`
+        *,
+        stripe_charges_enabled,
+        stripe_payouts_enabled,
+        stripe_details_submitted
+      `)
+      .eq("user_id", user.id)
+      .single();
+
+    if (vendorError || !vendor) {
+      router.push("/sell");
+      return;
+    }
+
+    setStoreName(vendor.store_name || "");
+    setStoreDescription(vendor.store_description || "");
+    setSupportEmail(vendor.support_email || "");
+    setLogoPreview(vendor.store_logo || null);
+
+    setStripeAccountId(vendor.stripe_account_id || null);
+    setStripeChargesEnabled(vendor.stripe_charges_enabled ?? false);
+    setStripePayoutsEnabled(vendor.stripe_payouts_enabled ?? false);
+    setStripeDetailsSubmitted(vendor.stripe_details_submitted ?? false);
+
+    setLoading(false);
+  }
+
+  loadData();
+}, [router, supabase]);
 
   /* -------------------------------------------
      LOGO HANDLERS
@@ -73,6 +107,7 @@ export default function VendorSettingsPage() {
   function handleLogoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     setLogoFile(file);
+
     if (file) {
       setLogoPreview(URL.createObjectURL(file));
     }
@@ -82,6 +117,124 @@ export default function VendorSettingsPage() {
     setLogoFile(null);
     setLogoPreview(null);
   }
+
+  /* -------------------------------------------
+     STRIPE CONNECT
+  ------------------------------------------- */
+async function handleStripeConnect() {
+  try {
+    setError("");
+    setInfo("");
+    setStripeLoading(true);
+
+    const res = await fetch("/api/vendor/stripe/onboard", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data?.error || "Failed to start Stripe onboarding.");
+      return;
+    }
+
+    /*
+    IF VENDOR IS FULLY CONNECTED
+    */
+    if (data?.message === "Stripe already connected") {
+      const dash = await fetch("/api/vendor/stripe/dashboard", {
+        method: "POST",
+      });
+
+      const dashData = await dash.json();
+
+      if (dashData?.url) {
+        window.location.href = dashData.url;
+        return;
+      }
+
+      setError("Failed to open Stripe dashboard.");
+      return;
+    }
+
+    /*
+    NORMAL ONBOARDING FLOW
+    */
+    if (data?.url) {
+      window.location.href = data.url;
+      return;
+    }
+
+    setError("Stripe onboarding URL was not returned.");
+  } catch (err) {
+    console.error("STRIPE CONNECT UI ERROR:", err);
+    setError("Something went wrong starting Stripe onboarding.");
+  } finally {
+    setStripeLoading(false);
+  }
+}
+
+  async function handleStripeDashboard() {
+  try {
+    setStripeLoading(true);
+
+    const res = await fetch("/api/vendor/stripe/dashboard", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data?.error || "Failed to open Stripe dashboard.");
+      return;
+    }
+
+    if (data?.url) {
+      window.location.href = data.url;
+      return;
+    }
+
+    setError("Stripe dashboard URL not returned.");
+  } catch (err) {
+    console.error("STRIPE DASHBOARD ERROR:", err);
+    setError("Something went wrong opening the Stripe dashboard.");
+  } finally {
+    setStripeLoading(false);
+  }
+}
+
+  async function handleStripeDisconnect() {
+  if (!confirm("Disconnect your Stripe account?")) return;
+
+  try {
+    setDisconnectLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await supabase
+      .from("vendors")
+      .update({
+        stripe_account_id: null,
+        stripe_charges_enabled: false,
+        stripe_payouts_enabled: false,
+        stripe_details_submitted: false,
+      })
+      .eq("user_id", user?.id);
+
+    setStripeAccountId(null);
+    setStripeChargesEnabled(false);
+    setStripePayoutsEnabled(false);
+    setStripeDetailsSubmitted(false);
+
+    setInfo("Stripe disconnected.");
+  } catch {
+    setError("Failed to disconnect Stripe.");
+  } finally {
+    setDisconnectLoading(false);
+  }
+}
 
   /* -------------------------------------------
      PASSWORD UPDATE
@@ -137,20 +290,23 @@ export default function VendorSettingsPage() {
   }
 
   /* -------------------------------------------
-     SAVE STOREFRONT (NO BANNER)
+     SAVE STOREFRONT
   ------------------------------------------- */
   async function handleSave() {
     setError("");
     setInfo("");
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       setSaving(false);
       return;
     }
 
-    let newLogoUrl = null;
+    let newLogoUrl: string | null = null;
 
     if (logoFile) {
       const ext = logoFile.name.split(".").pop();
@@ -173,14 +329,26 @@ export default function VendorSettingsPage() {
       newLogoUrl = pub.publicUrl;
     }
 
+    const updatePayload: {
+      store_name: string;
+      store_description: string;
+      support_email: string;
+      store_logo?: string | null;
+    } = {
+      store_name: storeName,
+      store_description: storeDescription,
+      support_email: supportEmail,
+    };
+
+    if (newLogoUrl) {
+      updatePayload.store_logo = newLogoUrl;
+    } else if (!logoPreview) {
+      updatePayload.store_logo = null;
+    }
+
     const { error: updateErr } = await supabase
       .from("vendors")
-      .update({
-        store_name: storeName,
-        store_description: storeDescription,
-        support_email: supportEmail,
-        store_logo: newLogoUrl || undefined,
-      })
+      .update(updatePayload)
       .eq("user_id", user.id);
 
     if (updateErr) {
@@ -194,7 +362,7 @@ export default function VendorSettingsPage() {
   }
 
   if (loading) {
-    return <p>Loading...</p>;
+    return <p style={{ padding: 20 }}>Loading...</p>;
   }
 
   return (
@@ -236,12 +404,97 @@ export default function VendorSettingsPage() {
           style={inputStyle}
         />
 
-        <button
-          onClick={handleSecuritySave}
-          style={saveButton(securitySaving)}
-        >
+        <button onClick={handleSecuritySave} style={saveButton(securitySaving)}>
           {securitySaving ? "Updating..." : "Update Password"}
         </button>
+
+        <hr style={{ margin: "60px 0" }} />
+
+        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>
+          Stripe Payouts
+        </h1>
+
+        <div style={cardBox}>
+          <p style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.6 }}>
+            Connect your Stripe account to receive vendor payouts and process
+            marketplace payments.
+          </p>
+
+          <div style={{ marginBottom: 14 }}>
+            <span
+              style={{
+                ...statusBadge,
+                background:
+  stripeChargesEnabled && stripePayoutsEnabled
+    ? "#e7fbe9"
+    : stripeAccountId
+    ? "#fff4e5"
+    : "#ffe5e5",
+                color:
+  stripeChargesEnabled && stripePayoutsEnabled
+    ? "#0a7a2b"
+    : stripeAccountId
+    ? "#9a5b00"
+    : "#b30000",
+
+borderColor:
+  stripeChargesEnabled && stripePayoutsEnabled
+    ? "#b7efc5"
+    : stripeAccountId
+    ? "#ffd59b"
+    : "#ffb3b3",
+              }}
+            >
+              {stripeChargesEnabled && stripePayoutsEnabled
+  ? "Stripe ready for payouts"
+  : stripeAccountId
+  ? "Stripe onboarding incomplete"
+  : "Stripe not connected"}
+            </span>
+          </div>
+
+          {stripeAccountId && (
+            <p style={{ fontSize: 13, color: "#555", marginBottom: 14 }}>
+              Connected account ID: {stripeAccountId}
+            </p>
+          )}
+
+          <button
+  onClick={
+    stripeChargesEnabled && stripePayoutsEnabled
+      ? handleStripeDashboard
+      : handleStripeConnect
+  }
+  disabled={stripeLoading}
+  style={darkButton(stripeLoading)}
+>
+            {stripeLoading
+  ? "Redirecting..."
+  : stripeChargesEnabled && stripePayoutsEnabled
+  ? "Open Stripe Dashboard"
+  : stripeAccountId
+  ? "Finish Stripe Onboarding"
+  : "Connect Stripe"}
+          </button>
+
+          {stripeAccountId && (
+  <button
+    onClick={handleStripeDisconnect}
+    disabled={disconnectLoading}
+    style={{
+      marginLeft: 10,
+      padding: "12px 20px",
+      background: "#fff",
+      color: "#c00",
+      border: "1px solid #c00",
+      borderRadius: 8,
+      cursor: "pointer",
+    }}
+  >
+    {disconnectLoading ? "Disconnecting..." : "Disconnect Stripe"}
+  </button>
+)}
+        </div>
 
         <hr style={{ margin: "60px 0" }} />
 
@@ -272,15 +525,15 @@ export default function VendorSettingsPage() {
 
         <div style={uploadBox}>
           <p style={uploadTitle}>Store Logo</p>
+
           <div
             style={uploadArea}
-            onClick={() =>
-              document.getElementById("logo-input")?.click()
-            }
+            onClick={() => document.getElementById("logo-input")?.click()}
           >
             {logoPreview ? (
               <img
                 src={logoPreview}
+                alt="Store logo preview"
                 style={{
                   maxWidth: "100%",
                   maxHeight: 130,
@@ -291,11 +544,17 @@ export default function VendorSettingsPage() {
               <p>Upload PNG/JPG</p>
             )}
           </div>
+
           {logoPreview && (
-            <button style={removeBtn} onClick={removeLogo}>
+            <button
+              type="button"
+              style={removeBtn}
+              onClick={removeLogo}
+            >
               Remove Logo
             </button>
           )}
+
           <input
             id="logo-input"
             type="file"
@@ -305,11 +564,7 @@ export default function VendorSettingsPage() {
           />
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={saveButton(saving)}
-        >
+        <button onClick={handleSave} disabled={saving} style={saveButton(saving)}>
           {saving ? "Saving..." : "Save Settings"}
         </button>
       </section>
@@ -335,6 +590,23 @@ const inputStyle = {
   border: "1px solid #ccc",
   fontSize: 14,
   marginBottom: 18,
+};
+
+const cardBox = {
+  background: "#fff",
+  borderRadius: 12,
+  border: "1px solid #eee",
+  padding: 18,
+  marginTop: 16,
+};
+
+const statusBadge = {
+  display: "inline-block",
+  padding: "8px 12px",
+  borderRadius: 999,
+  fontSize: 13,
+  fontWeight: 600,
+  border: "1px solid transparent",
 };
 
 const uploadBox = {
@@ -371,6 +643,18 @@ const removeBtn = {
 
 const saveButton = (saving: boolean) => ({
   marginTop: 20,
+  padding: "12px 20px",
+  background: "#111",
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 15,
+  borderRadius: 8,
+  border: "none",
+  cursor: saving ? "not-allowed" : "pointer",
+  opacity: saving ? 0.6 : 1,
+});
+
+const darkButton = (saving: boolean) => ({
   padding: "12px 20px",
   background: "#111",
   color: "#fff",
