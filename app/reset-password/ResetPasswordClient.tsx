@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
   const [info, setInfo] = useState("");
 
   const strength = useMemo(() => {
-    if (password.length < 6) return "weak";
+    if (password.length < 8) return "weak";
     if (password.length < 10) return "medium";
     return "strong";
   }, [password]);
@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
           }
 
           // IMPORTANT: only strip the code AFTER exchange succeeds
-          router.replace("/reset-password");
+          router.replace("/reset-password", { scroll: false });
           setStatus("ready");
           return;
         }
@@ -97,17 +97,32 @@ export default function ResetPasswordPage() {
           }
         }
 
-        // C) If no code/hash, maybe session already exists (user refreshed)
-        const { data } = await supabase.auth.getSession();
-        if (cancelled) return;
+// C) If no code/hash, maybe session already exists (user refreshed)
+const { data } = await supabase.auth.getSession();
+if (cancelled) return;
 
-        if (!data.session) {
-          setError(
-            "Missing reset token. Please request a new password reset link."
-          );
-        }
+if (!data.session) {
+  setError(
+    "Missing reset token. Please request a new password reset link."
+  );
+  setStatus("ready");
+  return;
+}
 
-        setStatus("ready");
+// Only allow recovery sessions
+const isRecovery = !!data.session?.user?.recovery_sent_at;
+
+if (!isRecovery) {
+  await supabase.auth.signOut({ scope: "local" });
+
+  setError(
+    "Invalid or expired reset link. Please request a new password reset email."
+  );
+  setStatus("ready");
+  return;
+}
+
+setStatus("ready");
       } catch (e: any) {
         if (cancelled) return;
         setError(e?.message ?? "Something went wrong.");
@@ -126,10 +141,10 @@ export default function ResetPasswordPage() {
     setError("");
     setInfo("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
+if (password.length < 8) {
+  setError("Password must be at least 8 characters.");
+  return;
+}
     if (password !== confirm) {
       setError("Passwords do not match.");
       return;
@@ -137,14 +152,26 @@ export default function ResetPasswordPage() {
 
     setStatus("saving");
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      setStatus("ready");
-      setError("No active recovery session. Request a new reset link.");
-      return;
-    }
+const { data: sessionData } = await supabase.auth.getSession();
 
-    const { error: updErr } = await supabase.auth.updateUser({ password });
+if (!sessionData.session) {
+  setStatus("ready");
+  setError("No active recovery session. Request a new reset link.");
+  return;
+}
+
+const isRecovery = !!sessionData.session.user?.recovery_sent_at;
+
+if (!isRecovery) {
+  await supabase.auth.signOut();
+  setStatus("ready");
+  setError("Invalid reset session. Please request a new reset link.");
+  return;
+}
+
+    const { error: updErr } = await supabase.auth.updateUser({
+  password,
+});
 
     if (updErr) {
       setStatus("ready");
@@ -158,9 +185,7 @@ export default function ResetPasswordPage() {
     // Optional: sign out to force clean login
     await supabase.auth.signOut();
 
-    setTimeout(() => {
-      router.push("/login");
-    }, 1200);
+router.replace("/login");
   }
 
   return (
