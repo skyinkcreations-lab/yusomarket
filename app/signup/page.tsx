@@ -6,11 +6,8 @@ import { useRouter } from "next/navigation";
 import Header from "../_components/Header";
 import Footer from "../_components/Footer";
 
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
-
 export default function SignupPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +19,6 @@ export default function SignupPage() {
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // Password strength indicator (kept)
   const getPasswordStrength = () => {
     if (password.length < 6) return "weak";
     if (password.length < 10) return "medium";
@@ -36,50 +32,42 @@ export default function SignupPage() {
     setError("");
     setInfo("");
 
-    /** --------------------------------
-     * 1️⃣ Create Supabase Auth User
-     * --------------------------------*/
-    const { data, error: signupErr } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signupErr) {
-      setLoading(false);
-      setError(signupErr.message);
-      return;
-    }
-
-    const user = data.user;
-
-    /** --------------------------------
-     * 2️⃣ Insert into profiles table
-     *    (as "user" by default)
-     * --------------------------------*/
-    if (user) {
-      await supabase.from("profiles").insert({
-        id: user.id,
-        email: user.email,
-        role: "user",
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setLoading(false);
+        setError(data.error || "Signup failed");
+        return;
+      }
+
+      setInfo(
+        "Account created! Please check your inbox and verify your email before logging in."
+      );
+
+      setEmail("");
+      setPassword("");
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 4000);
+
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
     }
 
     setLoading(false);
-
-    /** --------------------------------
-     * 3️⃣ Show verification message
-     * --------------------------------*/
-    setInfo(
-      "Account created! Please check your inbox and verify your email before logging in."
-    );
-
-    setEmail("");
-    setPassword("");
-
-    // Redirect to login after a delay (kept)
-    setTimeout(() => {
-      router.push("/login");
-    }, 5000);
   }
 
   return (
@@ -89,7 +77,9 @@ export default function SignupPage() {
       <div className="auth-page">
         <div className="auth-wrapper">
           <h1>Create your account</h1>
-          <p className="auth-sub">Join YusoMarket and start shopping smarter.</p>
+          <p className="auth-sub">
+            Join YusoMarket and start shopping smarter.
+          </p>
 
           {error && <div className="auth-alert error">{error}</div>}
           {info && <div className="auth-alert info">{info}</div>}
@@ -102,7 +92,11 @@ export default function SignupPage() {
               disabled={loading}
               onChange={(e) => setEmail(e.target.value)}
               className={`auth-input ${
-                email.length === 0 ? "" : isValidEmail(email) ? "valid" : "invalid"
+                email.length === 0
+                  ? ""
+                  : isValidEmail(email)
+                  ? "valid"
+                  : "invalid"
               }`}
             />
 
@@ -157,8 +151,6 @@ export default function SignupPage() {
           align-items: center;
           justify-content: center;
           padding: 80px 20px;
-
-          /* Match footer solid blue */
           background: #385fa2;
         }
 
@@ -169,7 +161,6 @@ export default function SignupPage() {
           color: #ffffff;
         }
 
-        /* Typography */
         .auth-wrapper h1 {
           font-size: clamp(28px, 3vw, 34px);
           font-weight: 900;
@@ -182,7 +173,6 @@ export default function SignupPage() {
           font-size: 15px;
           color: rgba(255, 255, 255, 0.75);
           margin-bottom: 28px;
-          font-weight: 400;
         }
 
         .auth-alert {
@@ -216,16 +206,9 @@ export default function SignupPage() {
           padding: 0 16px;
           border-radius: 999px;
           border: none;
-
           font-size: 14.5px;
           font-weight: 500;
-
           outline: none;
-          transition: box-shadow 0.2s ease, transform 0.2s ease;
-        }
-
-        .auth-input:focus {
-          box-shadow: 0 0 0 3px rgba(252, 135, 0, 0.35);
         }
 
         .auth-input.valid {
@@ -241,52 +224,25 @@ export default function SignupPage() {
         }
 
         .pw-strength {
-          margin-top: -6px;
-          margin-bottom: 2px;
           font-size: 13px;
           text-align: left;
           padding-left: 6px;
-          color: rgba(255, 255, 255, 0.78);
-        }
-
-        .pw-strength.weak {
-          color: rgba(254, 226, 226, 0.95);
-        }
-
-        .pw-strength.medium {
-          color: rgba(255, 237, 213, 0.95);
-        }
-
-        .pw-strength.strong {
-          color: rgba(220, 252, 231, 0.95);
         }
 
         .auth-button {
           height: 46px;
           border-radius: 999px;
           border: none;
-
           background: linear-gradient(135deg, #fc8700, #e67600);
-          color: #ffffff;
-
+          color: #fff;
           font-size: 15px;
           font-weight: 800;
-          letter-spacing: -0.2px;
-
           cursor: pointer;
-          transition: transform 0.25s ease, box-shadow 0.25s ease,
-            filter 0.25s ease;
-        }
-
-        .auth-button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 12px 26px rgba(252, 135, 0, 0.45);
         }
 
         .auth-footer {
           margin-top: 26px;
           font-size: 14.5px;
-          color: rgba(255, 255, 255, 0.8);
         }
 
         .auth-footer span {
@@ -294,20 +250,6 @@ export default function SignupPage() {
           color: #fc8700;
           font-weight: 700;
           cursor: pointer;
-        }
-
-        .auth-footer span:hover {
-          color: #ffffff;
-        }
-
-        @media (max-width: 640px) {
-          .auth-page {
-            padding: 60px 16px;
-          }
-
-          .auth-wrapper h1 {
-            font-size: 26px;
-          }
         }
       `}</style>
     </>
