@@ -4,11 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "../_components/Header";
 import Footer from "../_components/Footer";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser();
 
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -31,26 +29,30 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
 
-    // IMPORTANT: must be allowed in Supabase Auth URL config
-    const redirectTo =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/reset-password`
-        : undefined;
+    try {
+      const res = await fetch("/api/auth/request-reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
-      email,
-      { redirectTo }
-    );
+      const data = await res.json();
 
-    setLoading(false);
+      if (!data.success) {
+        setError(data.error || "Failed to send reset email.");
+        setLoading(false);
+        return;
+      }
 
-    if (resetErr) {
-      setError(resetErr.message);
-      return;
+      setInfo("Reset link sent. Check your inbox (and spam).");
+      setEmail("");
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
     }
 
-    setInfo("Reset link sent. Check your inbox (and spam) to continue.");
-    setEmail("");
+    setLoading(false);
   }
 
   return (
