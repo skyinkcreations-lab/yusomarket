@@ -40,33 +40,41 @@ export async function GET() {
       });
     }
 
-    const { data: cart } = await supabase
-      .from("carts")
-      .select(`
+const { data: cart } = await supabase
+  .from("carts")
+  .select(`
+    id,
+    user_id,
+    shipping_method,
+    shipping_cost,
+    discount_code,
+    discount_amount,
+    address_json,
+    region,
+    cart_items(
+      id,
+      quantity,
+      product:products(
         id,
-        user_id,
-        shipping_method,
-        shipping_cost,
-        discount_code,
-        discount_amount,
-        address_json,
-        region,
-        cart_items(
+        vendor_id,
+        name,
+        price,
+        thumbnail_url,
+        weight_grams,
+        shipping_profile_id,
+        shipping_profile:shipping_profiles(
           id,
-          quantity,
-          product:products(
-            id,
-            vendor_id,
-            name,
-            price,
-            thumbnail_url,
-            weight_grams,
-            shipping_profile_id
-          )
+          name,
+          region,
+          standard_cost,
+          express_cost,
+          free_shipping_threshold
         )
-      `)
-      .eq("id", cartId)
-      .maybeSingle();
+      )
+    )
+  `)
+  .eq("id", cartId)
+  .maybeSingle();
 
     if (!cart) {
       return NextResponse.json({

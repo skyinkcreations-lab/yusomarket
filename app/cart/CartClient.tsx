@@ -10,11 +10,21 @@ import React, {
 
 type Product = {
   id: string;
+  vendor_id: string;   // ADD THIS
   name: string;
   slug: string;
   price: number | null;
   original_price: number | null;
   thumbnail_url: string | null;
+
+  shipping_profile?: {
+    id: number;
+    name: string;
+    region: string | null;
+    standard_cost: number | null;
+    express_cost: number | null;
+    free_shipping_threshold: number | null;
+  } | null;
 };
 
 type CartItem = {
@@ -108,6 +118,7 @@ export default function CartClient({ cartFromServer }: Props) {
 
 
   const subtotal = useMemo(
+    
     () =>
       cartItems.reduce((sum, ci) => {
         const price = ci.product?.price ?? 0;
@@ -116,10 +127,60 @@ export default function CartClient({ cartFromServer }: Props) {
     [cartItems]
   );
 
-  const shippingCost = useMemo(
-    () => (shippingMethod === "express" ? 15 : 8),
-    [shippingMethod]
-  );
+  console.log(cartItems);
+  
+  const vendorGroups = useMemo(() => {
+  const groups: Record<string, CartItem[]> = {};
+
+  for (const item of cartItems) {
+    const vendorId = item.product?.vendor_id;
+    if (!vendorId) continue;
+
+    if (!groups[vendorId]) {
+      groups[vendorId] = [];
+    }
+
+    groups[vendorId].push(item);
+  }
+
+  return groups;
+
+}, [cartItems]);
+
+const shippingCost = useMemo(() => {
+
+  let totalShipping = 0;
+
+  Object.values(vendorGroups).forEach((items) => {
+
+    const profile = items[0]?.product?.shipping_profile ?? null;
+
+    if (!profile) return;
+
+    const vendorSubtotal = items.reduce((sum, item) => {
+      const price = item.product?.price ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
+
+    if (
+      profile.free_shipping_threshold &&
+      vendorSubtotal >= profile.free_shipping_threshold
+    ) {
+      return;
+    }
+
+    const vendorShipping =
+      shippingMethod === "express"
+        ? profile.express_cost ?? 0
+        : profile.standard_cost ?? 0;
+
+    totalShipping += vendorShipping;
+
+  });
+
+  return totalShipping;
+
+}, [vendorGroups, shippingMethod]);
 
   const tax = useMemo(
     () => Math.round(subtotal * 0.1 * 100) / 100,
@@ -175,7 +236,12 @@ export default function CartClient({ cartFromServer }: Props) {
 
     if (data?.cart) {
       cartIdRef.current = data.cart.id;
-      setCartItems(data.cart.cart_items || []);
+      setCartItems(
+  (data.cart.cart_items || []).map((i: any) => ({
+    ...i,
+    product: i.product ?? i.products ?? null
+  }))
+);
       setShippingMethod(data.cart.shipping_method || "standard");
     }
 
@@ -189,9 +255,18 @@ export default function CartClient({ cartFromServer }: Props) {
 }
 
   /* SHIPPING */
-  const handleShippingChange = async (value: "standard" | "express") => {
-    await syncCart({ type: "shipping", shipping_method: value });
-  };
+const handleShippingChange = async (value: "standard" | "express") => {
+
+  // update UI instantly
+  setShippingMethod(value);
+
+  // then sync server
+  await syncCart({
+    type: "shipping",
+    shipping_method: value
+  });
+
+};
 
   /* QUANTITY */
   const handleQuantityChange = async (itemId: string, delta: number) => {
@@ -328,60 +403,6 @@ if (!validateAddress()) {
           border: "1px solid #eee",
         }}
       >
-        {/* FAST CHECKOUT */}
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-          FAST CHECKOUT
-        </h3>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            style={{
-              flex: "1 1 140px",
-              background: "#000",
-              color: "#fff",
-              padding: "12px 0",
-              borderRadius: 8,
-            }}
-          >
-            Google Pay
-          </button>
-
-          <button
-            style={{
-              flex: "1 1 140px",
-              background: "#f4c015",
-              color: "#111",
-              padding: "12px 0",
-              borderRadius: 8,
-            }}
-          >
-            Fast Checkout
-          </button>
-
-          <button
-            style={{
-              flex: "1 1 140px",
-              background: "#ffc439",
-              color: "#111",
-              padding: "12px 0",
-              borderRadius: 8,
-            }}
-          >
-            PayPal
-          </button>
-        </div>
-
-        {/* OR */}
-        <div
-          style={{
-            textAlign: "center",
-            margin: "20px 0",
-            fontSize: 12,
-            color: "#888",
-          }}
-        >
-          OR
-        </div>
 
         {/* CONTACT */}
         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
@@ -486,7 +507,9 @@ if (!validateAddress()) {
             />{" "}
             Standard (3–5 days)
           </div>
-          <strong>{formatMoney(8)}</strong>
+<strong>
+{shippingMethod === "standard" ? formatMoney(shippingCost) : ""}
+</strong>
         </label>
 
         <label style={shipRowBase}>
@@ -499,26 +522,29 @@ if (!validateAddress()) {
             />{" "}
             Express (1–2 days)
           </div>
-          <strong>{formatMoney(15)}</strong>
+<strong>
+{shippingMethod === "express" ? formatMoney(shippingCost) : ""}
+</strong>
         </label>
 
-        {/* PAYMENT */}
-        <h3 style={{ marginTop: 28, fontSize: 14, fontWeight: 600 }}>
-          Payment
-        </h3>
+{/* PAYMENT */}
+<h3 style={{ marginTop: 28, fontSize: 14, fontWeight: 600 }}>
+  Payment
+</h3>
 
-        <div
-          style={{
-            border: "1px dashed #ccc",
-            borderRadius: 8,
-            padding: "12px",
-            fontSize: 12,
-            background: "#fafafa",
-            color: "#666",
-          }}
-        >
-          Payment placeholder — card, Google Pay, PayPal (integrate later)
-        </div>
+<div
+  style={{
+    border: "1px solid #eee",
+    borderRadius: 10,
+    padding: "14px",
+    fontSize: 13,
+    background: "#fafafa",
+    color: "#444",
+    lineHeight: 1.5,
+  }}
+>
+  Secure payment will be completed on the next page.
+</div>
 
         <button
           style={{
@@ -535,7 +561,7 @@ if (!validateAddress()) {
           }}
           onClick={handlePayNow}
         >
-          {saving ? "Saving..." : "Pay now"}
+          {saving ? "Saving..." : "Continue to payment"}
         </button>
       </div>
 

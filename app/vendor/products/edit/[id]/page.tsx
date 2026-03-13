@@ -799,6 +799,46 @@ const handleAddTag = async () => {
     }
   };
 
+  const handleDelete = async () => {
+  const confirmDelete = confirm(
+    "Delete this product permanently? This cannot be undone."
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    setSaving(true);
+
+    const res = await fetch("/api/vendor/products/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ productId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed deleting product");
+    }
+
+    setToast({ type: "success", message: "Product deleted." });
+
+    setTimeout(() => {
+      router.push("/vendor/products");
+    }, 600);
+  } catch (err: any) {
+    console.error(err);
+    setToast({
+      type: "error",
+      message: err?.message || "Delete failed.",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
+
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "10px 12px",
@@ -944,6 +984,23 @@ const handleAddTag = async () => {
             >
               {saving ? "Saving..." : "Save product"}
             </button>
+            <button
+  onClick={handleDelete}
+  disabled={saving}
+  style={{
+    padding: "9px 18px",
+    borderRadius: 999,
+    border: "1px solid #ef4444",
+    background: "#ef4444",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: saving ? "not-allowed" : "pointer",
+    opacity: saving ? 0.7 : 1,
+  }}
+>
+  Delete product
+</button>
           </div>
         </div>
 

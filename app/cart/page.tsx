@@ -46,44 +46,45 @@ export default async function CartPage() {
 
   /* ============== LOAD CART ============== */
 
-  async function loadCart(where: object) {
-    const { data } = await supabase
-      .from("carts")
-      .select(
-        `
+async function loadCart(where: object) {
+  const { data } = await supabase
+    .from("carts")
+    .select(`
+      id,
+      shipping_method,
+      discount_code,
+      cart_items (
         id,
-        shipping_method,
-        discount_code,
-        cart_items (
+        quantity,
+        product_id,
+        variant_id,
+        product:products!cart_items_product_id_fkey (
           id,
-          quantity,
-          product_id,
-          variant_id,
-          products (
+          vendor_id,
+          name,
+          slug,
+          price,
+          original_price,
+          thumbnail_url,
+          shipping_profile_id,
+          shipping_profile:shipping_profiles!products_shipping_profile_id_fkey (
             id,
             name,
-            slug,
-            price,
-            original_price,
-            thumbnail_url
+            region,
+            standard_cost,
+            express_cost,
+            free_shipping_threshold
           )
         )
-      `
       )
-      .match(where)
-      .maybeSingle();
+    `)
+    .match(where)
+    .maybeSingle();
 
-    if (!data) return null;
+  if (!data) return null;
 
-    // normalize — always return item.product
-    return {
-      ...data,
-      cart_items: data.cart_items?.map((i: any) => ({
-        ...i,
-        product: i.products ?? null,
-      })) ?? [],
-    };
-  }
+  return data;
+}
 
   let cart = null;
 
@@ -107,7 +108,7 @@ export default async function CartPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: "1180px", padding: "0 16px" }}>
-          <CartClient cartFromServer={cart} />
+          <CartClient cartFromServer={cart as any} />
         </div>
       </div>
 

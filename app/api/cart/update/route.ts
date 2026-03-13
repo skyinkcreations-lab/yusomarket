@@ -34,24 +34,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing cart_id" }, { status: 400 });
 
     // Load cart
-    const { data: cart } = await supabase
-      .from("carts")
-      .select(
-        `
+const { data: cart } = await supabase
+  .from("carts")
+  .select(
+    `
+    id,
+    user_id,
+    discount_code,
+    discount_amount,
+    cart_items(
+      id,
+      quantity,
+      product:products(
         id,
-        user_id,
-        discount_code,
-        discount_amount,
-        cart_items(
+        vendor_id,
+        name,
+        slug,
+        price,
+        original_price,
+        thumbnail_url,
+        shipping_profile_id,
+        shipping_profile:shipping_profiles!products_shipping_profile_id_fkey(
           id,
-          quantity,
-          product:products(
-            id,
-            price
-          )
+          name,
+          region,
+          standard_cost,
+          express_cost,
+          free_shipping_threshold
         )
-      `
       )
+    )
+  `
+  )
       .eq("id", cartId)
       .maybeSingle();
 
@@ -173,24 +187,36 @@ export async function POST(req: NextRequest) {
     ========================================================= */
     const { data: updated } = await supabase
       .from("carts")
-      .select(
-        `
-        id,
-        discount_code,
-        discount_amount,
-        shipping_method,
-        cart_items(
-          id,
-          quantity,
-          product:products(
-            id,
-            name,
-            price,
-            thumbnail_url
-          )
-        )
-      `
-      )
+.select(
+`
+id,
+discount_code,
+discount_amount,
+shipping_method,
+cart_items(
+  id,
+  quantity,
+  product:products(
+    id,
+    vendor_id,
+    name,
+    slug,
+    price,
+    original_price,
+    thumbnail_url,
+    shipping_profile_id,
+    shipping_profile:shipping_profiles(
+      id,
+      name,
+      region,
+      standard_cost,
+      express_cost,
+      free_shipping_threshold
+    )
+  )
+)
+`
+)
       .eq("id", cart.id)
       .maybeSingle();
 
