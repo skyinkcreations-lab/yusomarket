@@ -110,11 +110,7 @@ if (!data.session) {
 }
 
 // Only allow recovery sessions
-const isRecovery = !!data.session?.user?.recovery_sent_at;
-
-if (!isRecovery) {
-  await supabase.auth.signOut({ scope: "local" });
-
+if (!data.session) {
   setError(
     "Invalid or expired reset link. Please request a new password reset email."
   );

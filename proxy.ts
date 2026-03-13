@@ -1,4 +1,3 @@
-// proxy.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
@@ -7,25 +6,11 @@ export default async function proxy(req: NextRequest) {
   const res = NextResponse.next();
   const path = req.nextUrl.pathname;
 
-  // Public routes
-  const publicRoutes = [
-    "/",
-    "/login",
-    "/register",
-    "/auth",
-    "/category",
-    "/product",
-    "/vendors",
-    "/featured",
-    "/store",
-    "/deals",
-  ];
-
-  if (publicRoutes.some((p) => path.startsWith(p))) {
-    return res;
-  }
-
-  // Supabase session
+  /**
+   * ------------------------------------------------
+   * Create Supabase SSR client
+   * ------------------------------------------------
+   */
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -43,52 +28,68 @@ export default async function proxy(req: NextRequest) {
     }
   );
 
+  /**
+   * ------------------------------------------------
+   * Get current user session
+   * ------------------------------------------------
+   */
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // No session → redirect protected routes
+  /**
+   * ------------------------------------------------
+   * If no session → block protected routes
+   * ------------------------------------------------
+   */
   if (!user) {
-    if (path.startsWith("/account")) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    if (path.startsWith("/vendor")) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    if (path.startsWith("/admin")) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    return res;
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Load role
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  /**
+   * ------------------------------------------------
+   * Read role from JWT metadata
+   * (fast — no database query)
+   * ------------------------------------------------
+   */
+  const role = user.app_metadata?.role || user.user_metadata?.role || "customer";
 
-  const role = profile?.role ?? "customer";
-
-  // Admin block
+  /**
+   * ------------------------------------------------
+   * Admin protection
+   * ------------------------------------------------
+   */
   if (path.startsWith("/admin") && role !== "admin") {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Vendor block
+  /**
+   * ------------------------------------------------
+   * Vendor protection
+   * ------------------------------------------------
+   */
   if (path.startsWith("/vendor") && role !== "vendor") {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  /**
+   * ------------------------------------------------
+   * Allow request
+   * ------------------------------------------------
+   */
   return res;
 }
 
+/**
+ * ------------------------------------------------
+ * Protected routes
+ * ------------------------------------------------
+ */
 export const config = {
   matcher: [
-    "/",                  // homepage
-    "/admin/:path*",      // admin area
-    "/vendor/:path*",     // vendor area
-    "/account/:path*",    // account area
-    "/checkout/:path*",   // checkout protection
+    "/admin/:path*",
+    "/vendor/:path*",
+    "/account/:path*",
+    "/checkout/:path*",
   ],
 };

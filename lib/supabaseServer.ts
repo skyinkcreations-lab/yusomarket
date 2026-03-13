@@ -13,14 +13,9 @@ export async function supabaseServer() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch (_) {
-            // Next.js sometimes blocks cookie writes during render.
-            // This is OK — Supabase will refresh cookies during route handlers.
-          }
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
         },
       },
     }

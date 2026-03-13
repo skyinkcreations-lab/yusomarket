@@ -50,13 +50,16 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    if (role === "vendor") {
-      router.push("/vendor/dashboard");
-    } else if (role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/account");
-    }
+if (role === "vendor") {
+  router.push("/vendor/dashboard");
+  router.refresh();
+} else if (role === "admin") {
+  router.push("/admin");
+  router.refresh();
+} else {
+  router.push("/account");
+  router.refresh();
+}
   }
 
   return (

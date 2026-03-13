@@ -13,9 +13,12 @@ export async function logoutAction() {
 
 export default async function AccountPage() {
   const supabase = await supabaseServer();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  console.log("SERVER USER:", user);
 
   if (!user) redirect("/login");
 

@@ -64,7 +64,7 @@ type SearchResult = {
 };
 
 export default function Header() {
-  const supabase = supabaseBrowser();
+  const supabase = useRef(supabaseBrowser()).current;
   const { role, avatarLetter } = useRole();
 
   const [authUser, setAuthUser] = useState<any>(null);
@@ -123,7 +123,7 @@ const loadCartCount = useCallback(async () => {
     };
   }, [loadCartCount]);
 
-  const loggedIn = authUser !== null;
+  const loggedIn = !!authUser;
 
   const accountHref =
     role === "admin"
@@ -135,36 +135,23 @@ const loadCartCount = useCallback(async () => {
       : "/login";
 
   /** Auth sync */
-  useEffect(() => {
-async function load() {
-  const { data } = await supabase.auth.getSession();
+useEffect(() => {
+  async function load() {
+    const { data } = await supabase.auth.getUser();
 
-  const session = data.session;
+    const user = data?.user ?? null;
 
-  if (!session) {
-    setAuthUser(null);
-    return;
+    setAuthUser(user);
   }
 
-  const isRecovery = !!session.user?.recovery_sent_at;
+  load();
 
-  // treat recovery sessions as logged OUT in the UI
-  if (isRecovery) {
-    setAuthUser(null);
-    return;
-  }
-
-  setAuthUser(session.user);
-}
-
+  const { data: listener } = supabase.auth.onAuthStateChange(() => {
     load();
+  });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      load();
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [supabase]);
+  return () => listener.subscription.unsubscribe();
+}, []);
 
   /** Responsive detection */
   useEffect(() => {
