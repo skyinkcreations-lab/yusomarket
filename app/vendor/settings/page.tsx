@@ -366,10 +366,10 @@ async function handleStripeConnect() {
   }
 
   return (
-    <>
-      <Header />
+<div style={{ background: "#ffffff", minHeight: "100vh" }}>
+  <Header />
 
-      <section style={{ maxWidth: 800, margin: "40px auto", padding: 20 }}>
+      <section style={{ maxWidth: 1100, margin: "50px auto", padding: "0 20px" }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>
           Account Security
         </h1>
@@ -410,9 +410,9 @@ async function handleStripeConnect() {
 
         <hr style={{ margin: "60px 0" }} />
 
-        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>
-          Stripe Payouts
-        </h1>
+<h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 18 }}>
+  Stripe Payouts
+</h1>
 
         <div style={cardBox}>
           <p style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.6 }}>
@@ -459,7 +459,9 @@ borderColor:
             </p>
           )}
 
-          <button
+<div style={stripeButtonRow}>
+
+<button
   onClick={
     stripeChargesEnabled && stripePayoutsEnabled
       ? handleStripeDashboard
@@ -468,35 +470,30 @@ borderColor:
   disabled={stripeLoading}
   style={darkButton(stripeLoading)}
 >
-            {stripeLoading
-  ? "Redirecting..."
-  : stripeChargesEnabled && stripePayoutsEnabled
-  ? "Open Stripe Dashboard"
-  : stripeAccountId
-  ? "Finish Stripe Onboarding"
-  : "Connect Stripe"}
-          </button>
+  {stripeLoading
+    ? "Redirecting..."
+    : stripeChargesEnabled && stripePayoutsEnabled
+    ? "Open Stripe Dashboard"
+    : stripeAccountId
+    ? "Finish Stripe Onboarding"
+    : "Connect Stripe"}
+</button>
 
-          {stripeAccountId && (
+{stripeAccountId && (
   <button
     onClick={handleStripeDisconnect}
     disabled={disconnectLoading}
-    style={{
-      marginLeft: 10,
-      padding: "12px 20px",
-      background: "#fff",
-      color: "#c00",
-      border: "1px solid #c00",
-      borderRadius: 8,
-      cursor: "pointer",
-    }}
+    style={disconnectButton}
   >
     {disconnectLoading ? "Disconnecting..." : "Disconnect Stripe"}
   </button>
 )}
-        </div>
 
-        <hr style={{ margin: "60px 0" }} />
+</div> 
+
+</div> 
+
+<hr style={{ margin: "60px 0" }} />
 
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>
           Storefront Settings
@@ -569,8 +566,8 @@ borderColor:
         </button>
       </section>
 
-      <Footer />
-    </>
+<Footer />
+</div>
   );
 }
 
@@ -680,4 +677,20 @@ const infoBox = {
   padding: 12,
   borderRadius: 8,
   marginBottom: 20,
+};
+
+const stripeButtonRow: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 10,
+  marginTop: 10,
+};
+
+const disconnectButton: React.CSSProperties = {
+  padding: "12px 20px",
+  background: "#fff",
+  color: "#c00",
+  border: "1px solid #c00",
+  borderRadius: 8,
+  cursor: "pointer",
 };
