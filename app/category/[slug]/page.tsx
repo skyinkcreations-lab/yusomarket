@@ -26,6 +26,7 @@ type ProductVariant = {
   id: string;
   label: string;
   price: number;
+  originalPrice?: number | null;
 };
 
 type Product = {
@@ -209,20 +210,41 @@ useEffect(() => {
       return;
     }
 
-    const { data } = await supabase
-      .from("products")
-      .select(
-        "id,name,price,original_price,thumbnail_url,slug,stock_qty,vendors(store_name, free_shipping)"
-      )
+const { data } = await supabase
+  .from("products")
+  .select(`
+    id,
+    name,
+    price,
+    original_price,
+    thumbnail_url,
+    slug,
+    stock_qty,
+    vendors(store_name, free_shipping),
+    product_variants(
+      id,
+      label,
+      price,
+      original_price
+    )
+  `)
       .eq("status", "published")
       .in("id", productIds);
 
-    const mapped =
-      data?.map((p: any) => ({
-        ...p,
-        vendor_name: p.vendors?.store_name || null,
-        free_shipping: p.vendors?.free_shipping || false,
-      })) || [];
+const mapped =
+  data?.map((p: any) => ({
+    ...p,
+    vendor_name: p.vendors?.store_name || null,
+    free_shipping: p.vendors?.free_shipping || false,
+
+    // 🔥 THIS IS THE KEY FIX
+    variants: p.product_variants?.map((v: any) => ({
+      id: v.id,
+      label: v.label,
+      price: v.price,
+      originalPrice: v.original_price,
+    })) || [],
+  })) || [];
 
     setProducts(mapped);
     setLoading(false);
@@ -508,7 +530,7 @@ const visibleBrands = brands.filter(b =>
             )}
           </div>
 
-          {quickViewProduct.variants?.length > 0 && (
+          {Array.isArray(quickViewProduct.variants) && quickViewProduct.variants.length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: "block", color: "#111827" }}>
                 Choose option
