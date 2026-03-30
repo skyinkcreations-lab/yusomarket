@@ -69,6 +69,14 @@ type OrderRecord = {
   customer_email: string | null;
   shipping_address: string | null;
 
+  shipping_address_json?: {
+  line1?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+};
+
   order_items?: OrderItem[];
 };
 
@@ -132,7 +140,8 @@ const statusMeta: Record<
 export default function VendorOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const orderId = params.id as string;
+  const rawId = typeof params?.id === "string" ? params.id : null;
+const orderId = rawId?.trim();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,13 +171,22 @@ export default function VendorOrderDetailPage() {
   // ---------------------------------------------
   // LOAD ORDER
   // ---------------------------------------------
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setToast(null);
+useEffect(() => {
+  if (!orderId) return;
 
-        const { data: auth } = await supabase.auth.getUser();
+  const load = async () => {
+    try {
+      setLoading(true);
+      setToast(null);
+
+      // 🔥 STEP 2 — ADD THIS HERE
+      console.log("ACTUAL PARAM ID:", orderId);
+      console.log("MATCH CHECK:", {
+        param: orderId,
+        matchesExpected: orderId === "YM-97673001-c621",
+      });
+
+      const { data: auth } = await supabase.auth.getUser();
         if (!auth?.user) {
           router.push("/login");
           return;
@@ -185,15 +203,46 @@ export default function VendorOrderDetailPage() {
           return;
         }
 
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*, order_items(*)")
-          .eq("id", orderId)
-          .eq("vendor_id", vendor.id)
-          .maybeSingle();
+// DEBUG STEP 1 — check order exists WITHOUT vendor filter
+const { data: testOrder } = await supabase
+  .from("orders")
+  .select("order_number, vendor_id")
+  .eq("order_number", orderId)
+  .maybeSingle();
+
+console.log("STEP 1 ORDER CHECK:", testOrder);
+
+// DEBUG STEP 2 — check vendor id
+console.log("STEP 2 VENDOR:", vendor.id);
+
+// ORIGINAL QUERY
+const { data, error } = await supabase
+  .from("orders")
+  .select(`
+    *,
+    order_items (
+      id,
+      quantity,
+      unit_price,
+      total_price,
+      products (
+        name,
+        thumbnail_url
+      )
+    )
+  `)
+  .eq("order_number", orderId)
+  .maybeSingle();
+
+console.log("STEP 3 FINAL QUERY:", { data, error });
 
         if (error || !data) {
-          console.error("Order load error", error);
+          console.error("Order load debug:", {
+  error,
+  data,
+  orderId,
+  vendorId: vendor.id,
+});
           setToast({
             type: "error",
             message: "Unable to load this order.",
@@ -201,12 +250,20 @@ export default function VendorOrderDetailPage() {
           return;
         }
 
-        const o = data as OrderRecord;
-        setOrder(o);
-        setTrackingNumber(o.tracking_number || "");
-        setVendorNotes(o.vendor_notes || "");
-        setCustomerNotes(o.customer_notes || "");
-        setCancelReason(o.cancellation_reason || "");
+        const formatted = {
+  ...data,
+  order_items: data.order_items?.map((i: any) => ({
+    ...i,
+    product_name: i.products?.name,
+    thumbnail_url: i.products?.thumbnail_url,
+  })),
+};
+
+setOrder(formatted);
+setTrackingNumber(formatted.tracking_number || "");
+setVendorNotes(formatted.vendor_notes || "");
+setCustomerNotes(formatted.customer_notes || "");
+setCancelReason(formatted.cancellation_reason || "");
       } catch (err) {
         console.error(err);
         setToast({
@@ -238,7 +295,7 @@ export default function VendorOrderDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          orderId: order.id,
+          orderId: order.order_number,
           patch,
           action,
         }),
@@ -708,7 +765,7 @@ export default function VendorOrderDetailPage() {
                                 }}
                               />
                             )}
-                            <span>{item.product_name ?? "Product"}</span>
+                            <span>{item.product_name || "Product"}</span>
                           </td>
                           <td
                             style={{
@@ -861,9 +918,21 @@ export default function VendorOrderDetailPage() {
                     Shipping address
                   </div>
                   <div>
-                    {order.shipping_address
-                      ? order.shipping_address
-                      : "No shipping address stored."}
+                    {(() => {
+  const addr = order.shipping_address_json || {};
+
+  if (!addr.line1) return "No shipping address stored.";
+
+  return (
+    <>
+      {addr.line1}
+      <br />
+      {addr.city} {addr.state} {addr.postal_code}
+      <br />
+      {addr.country}
+    </>
+  );
+})()}
                   </div>
                 </div>
               </div>
@@ -1180,105 +1249,6 @@ color: currentStatus === s ? "#ffffff" : "#111827",
               >
                 {saving ? "Saving…" : "Save notes"}
               </button>
-            </section>
-
-            {/* Refund + cancel */}
-            <section style={sectionCard}>
-              <h2
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  marginBottom: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <CreditCard size={18} />
-                Refund & cancellation
-              </h2>
-
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#6b7280",
-                  marginBottom: 10,
-                }}
-              >
-                Use these tools when an order is not going ahead or has been
-                refunded externally. This writes a clear audit trail into the
-                order timeline.
-              </div>
-
-              <div
-                style={{
-                  marginBottom: 10,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
-                  Cancellation reason
-                </div>
-                <textarea
-                  style={{
-                    ...inputStyle,
-                    minHeight: 60,
-                    resize: "vertical",
-                  }}
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="e.g. customer requested cancellation, payment failed, stock unavailable…"
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  disabled={saving}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    border: "1px solid #ef4444",
-                    background: "#fef2f2",
-                    color: "#b91c1c",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: saving ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Mark as cancelled
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRefund}
-                  disabled={saving}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    border: "1px solid #0ea5e9",
-                    background: "#ecfeff",
-                    color: "#0369a1",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: saving ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Mark as refunded
-                </button>
-              </div>
             </section>
           </div>
         </div>

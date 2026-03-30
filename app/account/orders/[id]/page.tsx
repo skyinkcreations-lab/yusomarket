@@ -1,11 +1,12 @@
 // app/account/orders/[id]/page.tsx
+
+"use client";
+
+import { use } from "react";
 import Header from "../../../_components/Header";
 import Footer from "../../../_components/Footer";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { useEffect, useState } from "react";
 
-type PageParams = {
-  params: Promise<{ id: string }>;
-};
 
 function getStatusIndex(status: string | null | undefined): number {
   switch (status) {
@@ -28,45 +29,52 @@ function formatMoney(value: number | null | undefined) {
   }).format(Number(value || 0));
 }
 
-export default async function OrderDetailsPage({ params }: PageParams) {
-  const { id: publicOrderId } = await params;
+export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const publicOrderId = resolvedParams.id;
 
-  const supabase = await supabaseServer();
-  const { data: userRes } = await supabase.auth.getUser();
+  const [order, setOrder] = useState<any>(null);
+const [loading, setLoading] = useState(true);
 
-  if (!userRes?.user) {
-    return (
-      <>
-        <Header />
-        <div style={{ padding: 40 }}>Please log in to view this order.</div>
-        <Footer />
-      </>
-    );
-  }
+useEffect(() => {
+  let interval: NodeJS.Timeout;
 
-  const userId = userRes.user.id;
+  const loadOrder = async () => {
+    try {
+      const res = await fetch(`/api/orders/${publicOrderId}`);
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select(`
-      id,
-      order_number,
-      status,
-      total_amount,
-      shipping_cost,
-      discount_amount,
-      created_at,
-      shipping_address,
-      vendor_id,
-      order_items (
-        quantity,
-        total_price,
-        products ( name )
-      )
-    `)
-    .eq("order_number", publicOrderId)
-    .eq("user_id", userId)
-    .maybeSingle();
+      if (!res.ok) {
+        setOrder(null);
+        return;
+      }
+
+      const data = await res.json();
+      setOrder(data.order ?? null);
+    } catch (err) {
+      console.error("Order fetch failed", err);
+      setOrder(null);
+    } finally {
+  setLoading(false);
+}
+  };
+
+  loadOrder();
+
+  // 🔁 AUTO REFRESH EVERY 5 SECONDS
+  interval = setInterval(loadOrder, 5000);
+
+  return () => clearInterval(interval);
+}, [publicOrderId]);
+
+if (loading) {
+  return (
+    <>
+      <Header />
+      <div style={{ padding: 40 }}>Loading...</div>
+      <Footer />
+    </>
+  );
+}
 
   if (!order) {
     return (
@@ -78,29 +86,9 @@ export default async function OrderDetailsPage({ params }: PageParams) {
     );
   }
 
-  let vendor:
-    | { store_name: string | null; support_email: string | null }
-    | null = null;
+const vendor = order.vendor || {};
 
-  if (order.vendor_id) {
-    const { data: vendorData } = await supabase
-      .from("vendors")
-      .select("store_name, support_email")
-      .eq("id", order.vendor_id)
-      .maybeSingle();
-
-    vendor = vendorData;
-  }
-
-  const shippingAddress = order.shipping_address
-    ? (() => {
-        try {
-          return JSON.parse(order.shipping_address);
-        } catch {
-          return {};
-        }
-      })()
-    : {};
+const shippingAddress = order.shipping_address_json || {};
 
   const statusIndex = getStatusIndex(order.status);
   const steps = ["Order placed", "Processing", "Shipped", "Delivered"];
@@ -129,7 +117,7 @@ export default async function OrderDetailsPage({ params }: PageParams) {
             <span style={{ color: "#0f172a" }}>Order #{displayId}</span>
           </div>
 
-          <div style={responsiveGrid}>
+          <div className="grid-layout">
 
             {/* MAIN */}
             <section style={mainCard}>
@@ -167,20 +155,20 @@ export default async function OrderDetailsPage({ params }: PageParams) {
               <div style={sectionTitle}>Items</div>
 
               <div style={itemsBox}>
-                {order.order_items.map((item: any, idx: number) => (
+                {order.order_items?.map((item: any, idx: number) => (
                   <div
                     key={idx}
                     style={{
                       ...itemRow,
                       borderBottom:
-                        idx === order.order_items.length - 1
+                        idx === (order.order_items?.length || 0) - 1
                           ? "none"
                           : "1px solid #f1f5f9",
                     }}
                   >
                     <div>
                       <div style={itemName}>
-                        {item.products?.name}
+                        {item.product_name || item.products?.name || "Product"}
                       </div>
                       <div style={itemMeta}>
                         Qty {item.quantity}
@@ -228,29 +216,53 @@ export default async function OrderDetailsPage({ params }: PageParams) {
                 {"\n"}
                 {shippingAddress?.city || ""}{" "}
                 {shippingAddress?.state || ""}{" "}
-                {shippingAddress?.postcode || ""}
+                {shippingAddress?.postal_code || ""}
                 {"\n"}
                 {shippingAddress?.country || ""}
               </InfoCard>
 
-              <InfoCard title="Seller contact">
-                {vendor?.support_email ? (
-                  <>
-                    {vendor.store_name || "Seller"}
-                    {"\n"}
-                    <a
-                      href={`mailto:${vendor.support_email}?subject=${encodeURIComponent(
-                        `Order ${displayId}`
-                      )}`}
-                      style={linkStyle}
-                    >
-                      {vendor.support_email}
-                    </a>
-                  </>
-                ) : (
-                  "Seller contact not available."
-                )}
-              </InfoCard>
+{order.tracking_number && (
+  <InfoCard title="Courier tracking">
+    <div style={{ fontWeight: 600 }}>
+      {order.tracking_number}
+    </div>
+
+    <div
+      style={{
+        marginTop: 8,
+        fontSize: 12,
+        color: "#64748b",
+      }}
+    >
+      Use this tracking number with your courier to follow your shipment.
+    </div>
+  </InfoCard>
+)}
+
+<InfoCard title="Seller contact">
+  {vendor.support_email ? (
+    <>
+      {vendor.store_name || "Seller"}
+      {"\n"}
+      <a
+        href={`mailto:${vendor.support_email}?subject=${encodeURIComponent(
+          `Order ${displayId}`
+        )}`}
+        style={linkStyle}
+      >
+        {vendor.support_email}
+      </a>
+    </>
+  ) : (
+    "Seller contact not available."
+  )}
+</InfoCard>
+
+{order.customer_notes && (
+  <InfoCard title="Order notes">
+    {order.customer_notes}
+  </InfoCard>
+)}
 
               <InfoCard title="Need help?">
                 If there’s an issue with your order, contact support and we’ll
@@ -262,6 +274,16 @@ export default async function OrderDetailsPage({ params }: PageParams) {
       </main>
 
       <Footer />
+
+      <style jsx>{`
+  @media (min-width: 900px) {
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+  }
+`}</style>
     </>
   );
 }
@@ -313,12 +335,7 @@ function InfoCard({
 const responsiveGrid: React.CSSProperties = {
   display: "grid",
   gap: 24,
-  gridTemplateColumns:
-    typeof window === "undefined"
-      ? "1fr"
-      : window.innerWidth >= 900
-      ? "2fr 1fr"
-      : "1fr",
+  gridTemplateColumns: "1fr",
 };
 
 /* ====================== STYLES ====================== */

@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const { data: existing, error: loadErr } = await supabase
       .from("orders")
       .select("*")
-      .eq("id", orderId)
+      .eq("order_number", orderId)
       .eq("vendor_id", vendor.id)
       .maybeSingle();
 
@@ -101,15 +101,15 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case "processing":
         update.status = "processing";
-        update.processing_at = existing.processing_at ?? now;
+        update.processing_at = now;
         break;
       case "shipped":
         update.status = "shipped";
-        update.shipped_at = existing.shipped_at ?? now;
+        update.shipped_at = now;
         break;
       case "delivered":
         update.status = "delivered";
-        update.delivered_at = existing.delivered_at ?? now;
+        update.delivered_at = now;
         break;
       case "cancel":
         update.status = "cancelled";
@@ -125,27 +125,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nothing to update", tid }, { status: 400 });
     }
 
-    // -------------------------------------------
-    // WRITE (vendor scoped)
-    // -------------------------------------------
-    const { error: updateErr } = await supabase
-      .from("orders")
-      .update(update)
-      .eq("id", orderId)
-      .eq("vendor_id", vendor.id);
+// -------------------------------------------
+// WRITE (vendor scoped)
+// -------------------------------------------
 
-    if (updateErr) {
-      console.error(`[${tid}] UPDATE ERROR`, updateErr);
-      return NextResponse.json({ error: updateErr.message, tid }, { status: 500 });
-    }
+// 🔍 DEBUG — CHECK WHAT ROW EXISTS
+const { data: debugRow } = await supabase
+  .from("orders")
+  .select("order_number, vendor_id")
+  .eq("order_number", orderId)
+  .maybeSingle();
+
+console.log(`[${tid}] DEBUG ROW:`, debugRow);
+console.log(`[${tid}] DEBUG VENDOR:`, vendor.id);
+
+const { data: updatedRows, error: updateErr } = await supabase
+  .from("orders")
+  .update(update)
+  .eq("order_number", orderId)
+  .eq("vendor_id", vendor.id)
+  .select("id, status");
+
+console.log(`[${tid}] UPDATE PAYLOAD:`, update);
+
+if (updateErr) {
+  console.error(`[${tid}] UPDATE ERROR`, updateErr);
+  return NextResponse.json({ error: updateErr.message, tid }, { status: 500 });
+}
+
+if (!updatedRows || updatedRows.length === 0) {
+  console.error(`[${tid}] NO ROWS UPDATED`, {
+    orderId,
+    vendorId: vendor.id,
+    update,
+  });
+  return NextResponse.json({ error: "No rows updated", tid }, { status: 400 });
+}
+
+console.log(`[${tid}] UPDATED ROWS:`, updatedRows);
 
     // -------------------------------------------
     // RELOAD USING ADMIN (bypass RLS)
     // -------------------------------------------
     const { data: updated, error: reloadErr } = await supabaseAdmin
       .from("orders")
-      .select("*, order_items(*)")
-      .eq("id", orderId)
+.select(`
+  *,
+  vendor:vendors (
+    store_name,
+    support_email
+  ),
+  order_items (
+    id,
+    quantity,
+    unit_price,
+    total_price,
+    products (
+      name,
+      thumbnail_url
+    )
+  )
+`)
+      .eq("order_number", orderId)
       .maybeSingle();
 
     if (reloadErr || !updated) {
@@ -156,9 +197,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log(`[${tid}] RELOADED STATUS:`, updated.status);
+
     console.log(`[${tid}] ORDER UPDATE COMPLETE`);
 
-    return NextResponse.json({ success: true, order: updated, tid });
+const formatted = {
+  ...updated,
+  vendor: updated.vendor || {},
+  order_items: updated.order_items?.map((i: any) => ({
+    ...i,
+    product_name: i.products?.name,
+    thumbnail_url: i.products?.thumbnail_url,
+  })),
+};
+
+return NextResponse.json({ success: true, order: formatted, tid });
   } catch (err: any) {
     console.error(`[FATAL ${tid}]`, err);
     return NextResponse.json({ error: err.message || "Server error", tid }, { status: 500 });

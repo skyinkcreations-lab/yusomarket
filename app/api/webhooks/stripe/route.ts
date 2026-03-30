@@ -401,9 +401,7 @@ export async function POST(req: Request) {
           subtotal + shippingCost + tax - discountAmount
         );
 
-        const orderNumber = `YM-${Date.now()
-          .toString()
-          .slice(-8)}-${vendorId.slice(0, 4)}`;
+        const orderNumber = `YM-${paymentIntentId.slice(-8)}-${vendorId.slice(0, 4)}`;
 
         const { data: order, error: orderError } = await supabase
           .from("orders")

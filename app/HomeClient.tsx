@@ -631,6 +631,26 @@ export default function HomeClient({
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
+const toastTimeout = useRef<number | null>(null);
+
+useEffect(() => {
+  return () => {
+    if (toastTimeout.current) {
+      clearTimeout(toastTimeout.current);
+    }
+  };
+}, []);
+
+const [toast, setToast] = useState<{
+  show: boolean;
+  message: string;
+  type: "success" | "error";
+}>({
+  show: false,
+  message: "",
+  type: "success",
+});
+
 const selectedVariant = useMemo(() => {
   if (!quickViewProduct?.variants?.length) return null;
 
@@ -653,6 +673,17 @@ const selectedVariant = useMemo(() => {
     [categories]
   );
 
+const showToast = (message: string, type: "success" | "error" = "success") => {
+  setToast({ show: true, message, type });
+
+  if (toastTimeout.current) {
+    clearTimeout(toastTimeout.current);
+  }
+
+  toastTimeout.current = window.setTimeout(() => {
+    setToast(prev => ({ ...prev, show: false }));
+  }, 2200);
+};
 
   // add to cart -> real API + bubble
 const handleAddToCart = async (
@@ -666,25 +697,29 @@ const handleAddToCart = async (
       credentials: "include",
       body: JSON.stringify({
         productId: product.id,
-        variantId: variantId ?? null,
+        variantId,
         quantity: 1,
       }),
     });
 
-    const data = await res.json().catch(() => ({} as any));
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      console.error("ADD TO CART FAILED:", data);
-      return;
+      showToast(data?.error || "Failed to add item to cart", "error");
+      return false;
     }
+
+    showToast(`${product.name} added to cart`, "success");
 
     window.dispatchEvent(new Event("cart:updated"));
 
-  } catch (err) {
-    console.error("Failed to add to cart", err);
+    return true;
+
+  } catch (error) {
+    showToast("Something went wrong adding to cart", "error");
+    return false;
   }
 };
-
 
 const handleQuickView = (product: Product) => {
   setQuickViewProduct(product);
@@ -1078,10 +1113,12 @@ color: "#385fa2",
                     <button
   className="quickview-add"
   disabled={(quickViewProduct.variants?.length ?? 0) > 0 && !selectedVariantId}
-  onClick={() => {
-    handleAddToCart(quickViewProduct, selectedVariantId);
+onClick={async () => {
+  const ok = await handleAddToCart(quickViewProduct, selectedVariantId);
+  if (ok) {
     setQuickViewProduct(null);
-  }}
+  }
+}}
 >
   + Add to cart
 </button>
@@ -1102,7 +1139,12 @@ color: "#385fa2",
 
       <Footer />
 
-      {/* Styles copied from OG version */}
+{toast.show && (
+  <div className={`cart-toast ${toast.type === "error" ? "error" : "success"}`}>
+    {toast.message}
+  </div>
+)}
+
       <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 .promo-marquee {
@@ -1601,7 +1643,7 @@ background: rgba(2,6,23,0.42);
 }
 
 .quickview-vendor a {
-  color: #2563eb;
+  color: #31538e;
   text-decoration: none;
   font-weight: 600;
 }
@@ -1660,7 +1702,6 @@ background: rgba(2,6,23,0.42);
   font-size: 14.5px;
   font-weight: 750;
 
-  box-shadow: 0 10px 24px rgba(56,95,162,0.35);
   cursor: pointer;
 
   transition: all .25s ease;
@@ -1669,11 +1710,10 @@ background: rgba(2,6,23,0.42);
 .quickview-add:hover {
   background: linear-gradient(
     135deg,
-    #fc8700,
-    #e67600
+    #27457a,
+    #27457a
   );
 
-  box-shadow: 0 14px 30px rgba(252,135,0,0.45);
   transform: translateY(-1px);
 }
 
@@ -1913,7 +1953,7 @@ background: rgba(2,6,23,0.42);
   position: absolute;
   top: 10px;
   left: 10px;
-  background: #385fa2;
+  background:#31538e;
   color: white;
   font-size: 10.5px;  /* slightly smaller */
   font-weight: 800;
@@ -1990,7 +2030,7 @@ background: rgba(2,6,23,0.42);
   height: 38px;
   border-radius: 12px;
   border: none;
-  background: #2563eb;
+  background: #31538e;
 
   color: #ffffff;          /* explicit */
   font-size: 17px;         /* slightly cleaner */
@@ -2003,7 +2043,7 @@ background: rgba(2,6,23,0.42);
 }
 
 .modern-cart-btn:hover {
-  background: #1d4ed8;
+  background: #29487c;
   transform: scale(1.05);
 }
 
@@ -2115,6 +2155,63 @@ background: rgba(2,6,23,0.42);
   height: 200px;
 }
 
+}
+
+.cart-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 260;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 18px 40px rgba(15,23,42,0.22);
+  animation: toastIn .22s ease, toastOut .22s ease 1.98s forwards;
+}
+
+.cart-toast.success {
+  background: linear-gradient(135deg, #31538e, #31538e);
+}
+
+.cart-toast.error {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+@media (max-width: 768px) {
+  .cart-toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+    min-width: 0;
+  }
 }
 `}</style>
     </>

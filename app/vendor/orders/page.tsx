@@ -14,6 +14,7 @@ export default function VendorOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -23,6 +24,8 @@ export default function VendorOrdersPage() {
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) return router.push("/login");
+
+      setUserId(auth.user.id);
 
       const { data: vendor } = await supabase
         .from("vendors")
@@ -39,23 +42,55 @@ export default function VendorOrdersPage() {
   useEffect(() => {
     if (!vendorId) return;
 
-    (async () => {
-      setLoading(true);
-      const start = (page - 1) * limit;
-      const end = start + limit - 1;
+(async () => {
+  setLoading(true);
 
-      const { data } = await supabase
-        .from("orders")
-        .select(
-          "id, order_number, customer_name, customer_email, total_amount, currency, status, created_at"
-        )
-        .eq("vendor_id", vendorId)
-        .order("created_at", { ascending: false })
-        .range(start, end);
+  const start = (page - 1) * limit;
+  const end = start + limit - 1;
 
-      setOrders(data || []);
-      setLoading(false);
-    })();
+const { data } = await supabase
+  .from("orders")
+  .select(`
+    id,
+    order_number,
+    user_id,
+    customer_name,
+    customer_email,
+    total_amount,
+    currency,
+    status,
+    created_at,
+    order_items (
+      id,
+      product_id,
+      products (
+        id,
+        vendor_id
+      )
+    )
+  `)
+    .order("created_at", { ascending: false })
+
+    console.log("RAW ORDERS:", data);
+
+  // 🔥 FILTER TO ONLY THIS VENDOR'S ORDERS
+const vendorOrders = (data || []).filter((o: any) => {
+  const match = o.order_items?.some(
+    (i: any) => i.products?.vendor_id === vendorId
+  );
+
+  console.log("CHECK ORDER:", o.order_number, {
+    match,
+    items: o.order_items,
+    vendorId
+  });
+
+  return match && o.user_id !== userId;
+});
+
+  setOrders(vendorOrders);
+  setLoading(false);
+})();
   }, [vendorId, page]);
 
   const filtered = useMemo(() => {
@@ -74,7 +109,8 @@ export default function VendorOrdersPage() {
       currency: c,
     }).format(n);
 
-  const open = (id: string) => router.push(`/vendor/orders/${id}`);
+  const open = (orderNumber: string) =>
+  router.push(`/vendor/orders/${orderNumber}`);
 
   const statusColor = (s: string) =>
     s === "pending"
@@ -178,7 +214,7 @@ export default function VendorOrdersPage() {
                     {filtered.map((o) => (
                       <tr
                         key={o.id}
-                        onClick={() => open(o.id)}
+                        onClick={() => o.order_number && open(o.order_number)}
                         style={{
                           background: "#fff",
                           borderRadius: 12,
@@ -243,7 +279,7 @@ export default function VendorOrdersPage() {
     {filtered.map((o, i) => (
       <div
         key={o.id}
-        onClick={() => open(o.id)}
+        onClick={() => o.order_number && open(o.order_number)}
         style={{
           display: "grid",
           gridTemplateColumns: "1fr auto",

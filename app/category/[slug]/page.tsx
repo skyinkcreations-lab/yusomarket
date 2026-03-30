@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/app/_components/Header";
@@ -22,6 +22,12 @@ function formatAUD(n: number) {
    Types
 ================================ */
 
+type ProductVariant = {
+  id: string;
+  label: string;
+  price: number;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -31,7 +37,8 @@ type Product = {
   slug: string;
   stock_qty: number;
   vendor_name: string | null;
-free_shipping: boolean;
+  free_shipping: boolean;
+  variants?: ProductVariant[]; // <-- ADD THIS LINE
 };
 
 /* ===============================
@@ -60,13 +67,86 @@ const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
 const [maxPrice, setMaxPrice] = useState(5000);
 const [inStock, setInStock] = useState(false);
 
+// Toast state + ref
+const [toast, setToast] = useState<{
+  show: boolean;
+  message: string;
+  type: "success" | "error";
+}>({
+  show: false,
+  message: "",
+  type: "success",
+});
+
+// Quick view state
+const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+const selectedVariant = useMemo(() => {
+  if (!quickViewProduct?.variants?.length) return null;
+
+  return quickViewProduct.variants.find(
+    (v) => v.id === selectedVariantId
+  ) ?? null;
+}, [quickViewProduct, selectedVariantId]);
+
+// Ref to store timeout ID
+const toastTimeout = useRef<number | null>(null);
+
+// Show toast function
+const showToast = (message: string, type: "success" | "error" = "success") => {
+  setToast({ show: true, message, type });
+
+  if (toastTimeout.current) clearTimeout(toastTimeout.current);
+
+  toastTimeout.current = window.setTimeout(() => {
+    setToast(prev => ({ ...prev, show: false }));
+  }, 2200);
+};
+
+const handleAddToCart = async (product: Product, variantId: string | null) => {
+  try {
+    const res = await fetch("/api/cart/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        productId: product.id,
+        variantId,
+        quantity: 1,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      showToast(data?.error || "Failed to add item to cart", "error");
+      return false;
+    }
+
+    showToast(`${product.name} added to cart`, "success");
+    window.dispatchEvent(new Event("cart:updated"));
+
+    return true;
+
+  } catch (error) {
+    showToast("Something went wrong adding to cart", "error");
+    return false;
+  }
+};
+
+const handleQuickView = (product: Product) => {
+  setQuickViewProduct(product);
+
+  // DEFAULT TO FIRST VARIANT (CRITICAL)
+  setSelectedVariantId(product?.variants?.[0]?.id ?? null);
+};
 
   const categoryName = slug
   ? slug
       .replace(/-/g, " ")
       .replace(/\b\w/g, c => c.toUpperCase())
   : "";
-
 
   /* ===============================
      Fetch
@@ -313,69 +393,168 @@ const visibleBrands = brands.filter(b =>
       {loading ? (
         <p>Loading…</p>
       ) : (
-        <div className="yuso-grid yuso-products">
-{filtered.map((p) => (
-  <div key={p.id} className="product-card modern-card">
-    <div className="modern-image-wrap">
-      {p.original_price && p.original_price > p.price ? (
-        <span className="modern-badge">
-          -{Math.round((1 - p.price / p.original_price) * 100)}%
-        </span>
-      ) : null}
-
-      <Link href={`/product/${p.slug}`}>
-        <img
-          src={p.thumbnail_url || "/images/placeholder-product.jpg"}
-          alt={p.name}
-        />
-      </Link>
-    </div>
-
-    <div className="modern-content">
-      <Link href={`/product/${p.slug}`} className="modern-title">
-        {p.name}
-      </Link>
-
-      <div className="modern-price-stack">
-        {p.original_price && p.original_price > p.price ? (
-          <span className="modern-original">
-            {formatAUD(p.original_price)}
-          </span>
-        ) : null}
-
-        <span className="modern-price">
-          {formatAUD(p.price)}
-        </span>
+<div className="yuso-grid yuso-products">
+  {filtered.map((p) => (
+    <div key={p.id} className="product-card modern-card">
+      <div className="modern-image-wrap">
+        <Link href={`/product/${p.slug}`}>
+          <img
+            src={p.thumbnail_url || "/images/placeholder-product.jpg"}
+            alt={p.name}
+          />
+        </Link>
       </div>
 
-      <Link href={`/product/${p.slug}`} className="modern-cart-btn" aria-label="View product">
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="9" cy="20" r="1" />
-          <circle cx="18" cy="20" r="1" />
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6" />
-        </svg>
-      </Link>
-    </div>
-  </div>
-))}
+      <div className="modern-content">
+        <Link href={`/product/${p.slug}`} className="modern-title">
+          {p.name}
+        </Link>
+
+        <div className="modern-price-stack">
+          {p.original_price && p.original_price > p.price ? (
+            <span className="modern-original">{formatAUD(p.original_price)}</span>
+          ) : null}
+          <span className="modern-price">{formatAUD(p.price)}</span>
         </div>
+
+<div className="modern-actions">
+  {/* Quick View button */}
+  <button
+    className="modern-cart-btn"
+    onClick={() => handleQuickView(p)}
+    type="button"
+    aria-label="Quick view"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </button>
+
+  {/* Add to Cart button */}
+  <button
+    className="modern-cart-btn"
+    aria-label="Add to cart"
+    onClick={async () => await handleAddToCart(p, null)}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="9" cy="20" r="1" />
+      <circle cx="18" cy="20" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  </button>
+</div>
+      </div>
+    </div>
+  ))}
+</div>
       )}
      </main>
   </div>        {/* yuso-layout */}
 </div>          {/* yuso-wrap */}
 </div>          {/* yuso-page */}
 
+{quickViewProduct && (
+  <div className="quickview-backdrop" onClick={() => setQuickViewProduct(null)}>
+    <div className="quickview-modal" onClick={(e) => e.stopPropagation()}>
+
+      <button className="quickview-close" onClick={() => setQuickViewProduct(null)}>
+        ✕
+      </button>
+
+      <div className="quickview-body">
+        <div className="quickview-image-wrap">
+          <img
+            src={quickViewProduct.thumbnail_url || "/images/placeholder-product.jpg"}
+            alt={quickViewProduct.name}
+          />
+        </div>
+
+        <div className="quickview-info">
+          <h3>{quickViewProduct.name}</h3>
+
+          {quickViewProduct.vendor_name && (
+            <p className="quickview-vendor">
+              Sold by <Link href={`/vendors/${quickViewProduct.vendor_name}`}>{quickViewProduct.vendor_name}</Link>
+            </p>
+          )}
+
+          <div className="quickview-price-row">
+            <span className="quickview-price">
+              {formatAUD(selectedVariant?.price ?? quickViewProduct.price)}
+            </span>
+            {(selectedVariant?.originalPrice ?? quickViewProduct.original_price) && (
+              <span className="quickview-original">
+                {formatAUD(selectedVariant?.originalPrice ?? quickViewProduct.original_price ?? 0)}
+              </span>
+            )}
+          </div>
+
+          {quickViewProduct.variants?.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: "block", color: "#111827" }}>
+                Choose option
+              </label>
+              <select
+                value={selectedVariantId ?? ""}
+                onChange={(e) => setSelectedVariantId(e.target.value)}
+                style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #e5e7eb", padding: "0 12px", fontSize: 13, fontWeight: 600, background: "#fff", cursor: "pointer" }}
+              >
+                <option value="" disabled>Select an option</option>
+                {quickViewProduct.variants.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="quickview-actions">
+            <button
+              className="quickview-add"
+              disabled={(quickViewProduct.variants?.length ?? 0) > 0 && !selectedVariantId}
+              onClick={async () => {
+                const ok = await handleAddToCart(quickViewProduct, selectedVariantId);
+                if (ok) setQuickViewProduct(null);
+              }}
+            >
+              + Add to cart
+            </button>
+
+            <Link href={`/product/${quickViewProduct.slug}`} className="quickview-view">
+              View full details →
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
 <Footer />
 
+{toast.show && (
+  <div className={`cart-toast ${toast.type === "error" ? "error" : "success"}`}>
+    {toast.message}
+  </div>
+)}
 
 <style>{`
 /* =========================
@@ -393,7 +572,7 @@ const visibleBrands = brands.filter(b =>
 ========================= */
 
 .yuso-hero {
-  background: #385fa2;
+  background: #31538e;
   padding: 80px 20px 70px;
   color: white;
   text-align: center;
@@ -646,7 +825,7 @@ const visibleBrands = brands.filter(b =>
   position: absolute;
   top: 10px;
   left: 10px;
-  background: #385fa2;
+  background: #31538e;
   color: white;
   font-size: 10.5px;
   font-weight: 800;
@@ -701,7 +880,7 @@ const visibleBrands = brands.filter(b =>
   height: 38px;
   border-radius: 12px;
   border: none;
-  background: #2563eb;
+  background: #31538e;
   color: #ffffff;
   font-size: 17px;
   display: flex;
@@ -713,7 +892,7 @@ const visibleBrands = brands.filter(b =>
 }
 
 .modern-cart-btn:hover {
-  background: #1d4ed8;
+  background: #27457a;
   transform: scale(1.05);
 }
 
@@ -725,6 +904,290 @@ const visibleBrands = brands.filter(b =>
   align-items: stretch;
 }
 
+.cart-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 260;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 18px 40px rgba(15,23,42,0.22);
+  animation: toastIn .22s ease, toastOut .22s ease 1.98s forwards;
+}
+
+.cart-toast.success {
+  background: linear-gradient(135deg, #31538e, #31538e);
+}
+
+.cart-toast.error {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+
+@media (max-width: 768px) {
+  .cart-toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+    min-width: 0;
+  }
+}
+  .quickview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quickview-modal {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 450px;
+  width: 95%;
+  text-align: center;
+}
+
+.quickview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.42);
+  backdrop-filter: blur(5px);
+  z-index: 500;
+  display: flex;
+  padding: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.quickview-modal {
+  width: 100%;
+  max-width: 960px;
+  border-radius: 30px;
+  background: #ffffff;
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 20px 60px rgba(2,6,23,0.25), inset 0 1px 0 rgba(255,255,255,0.4);
+  position: relative;
+  overflow: hidden;
+  animation: quickViewIn .28s ease-out;
+}
+
+.quickview-close {
+  top: 10px;
+  right: 10px;
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff;
+  color: #020617;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(2,6,23,0.25);
+  border: 1px solid rgba(2,6,23,0.08);
+  z-index: 20;
+}
+
+.quickview-close:hover {
+  transform: rotate(90deg) scale(1.05);
+}
+
+.quickview-body {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 0;
+  min-height: 460px;
+}
+
+.quickview-image-wrap {
+  position: relative;
+  z-index: 1;
+  min-height: 460px;
+  padding: 0;
+  overflow: hidden;
+  border-top-left-radius: 30px;
+  border-bottom-left-radius: 30px;
+  background: #0f172a;
+  transform: translateZ(0);
+  margin-right: -1px;
+}
+
+.quickview-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-top-left-radius: 30px;
+  border-bottom-left-radius: 30px;
+}
+
+.quickview-info {
+  background: #ffffff;
+  padding: 54px 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.quickview-info h3 {
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: -0.9px;
+  color: #020617;
+  margin-bottom: 6px;
+}
+
+.quickview-vendor {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 14px;
+}
+
+.quickview-vendor a {
+  color: #31538e;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.quickview-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quickview-price {
+  font-size: 32px;
+  font-weight: 950;
+  letter-spacing: -1.2px;
+  color: #020617;
+}
+
+.quickview-original {
+  font-size: 14px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.quickview-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.quickview-add {
+  height: 46px;
+  padding: 0 30px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #385fa2, #2f4f88);
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all .25s ease;
+}
+
+.quickview-add:hover {
+  background: linear-gradient(135deg, #27457a, #27457a);
+  transform: translateY(-1px);
+}
+
+.quickview-view {
+  height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 650;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: all .2s ease;
+}
+
+.quickview-view:hover {
+  border-color: #385fa2;
+  color: #385fa2;
+}
+
+@keyframes quickViewIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 768px) {
+  .quickview-body {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .quickview-image-wrap {
+    min-height: 240px;
+    height: 340px;
+    border-radius: 10px 10px 0 0;
+  }
+  .quickview-image-wrap img {
+    border-radius: 26px 26px 0 0;
+  }
+  .quickview-info {
+    padding: 26px 22px 30px;
+    border-bottom-left-radius: 26px;
+    border-bottom-right-radius: 26px;
+  }
+  .quickview-info h3 {
+    font-size: 20px;
+    letter-spacing: -0.4px;
+  }
+  .quickview-price {
+    font-size: 26px;
+  }
+  .quickview-vendor {
+    font-size: 12px;
+  }
+  .quickview-actions {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .quickview-add, .quickview-view {
+    width: 100%;
+    justify-content: center;
+  }
+  .quickview-add {
+    height: 44px;
+    font-size: 12px;
+  }
+  .quickview-view {
+    height: 42px;
+    font-size: 12px;
+  }
+}
 `}</style>
     </>
   );

@@ -3,12 +3,20 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import crypto from "crypto";
 import { stripe, STRIPE_PLATFORM_FEE_PERCENT } from "@/lib/stripe";
 
+type ShippingProfile = {
+  standard_cost: number | null;
+  express_cost: number | null;
+  free_shipping_threshold: number | null;
+};
+
 type CartProduct = {
   id: string;
   name: string;
   price: number;
   vendor_id: string;
   thumbnail_url?: string | null;
+
+  shipping_profile?: ShippingProfile | null;
 };
 
 type CartItem = {
@@ -86,12 +94,18 @@ export async function POST(req: NextRequest) {
           id,
           quantity,
           product:products(
-            id,
-            name,
-            price,
-            vendor_id,
-            thumbnail_url
-          )
+  id,
+  name,
+  price,
+  vendor_id,
+  thumbnail_url,
+  shipping_profile_id,
+  shipping_profile:shipping_profiles(
+    standard_cost,
+    express_cost,
+    free_shipping_threshold
+  )
+)
         )
       `)
       .eq("id", cartId)
@@ -188,7 +202,40 @@ export async function POST(req: NextRequest) {
     CALCULATE TOTALS
     =================================
     */
-    const shippingCost = shippingMethod === "express" ? 15 : 8;
+    const vendorGroups = validItems.reduce(
+  (acc: Record<string, typeof validItems>, item) => {
+    const vendorId = item.product.vendor_id;
+    if (!acc[vendorId]) acc[vendorId] = [];
+    acc[vendorId].push(item);
+    return acc;
+  },
+  {} as Record<string, typeof validItems>
+);
+
+let shippingCost = 0;
+
+for (const vendorId in vendorGroups) {
+  const vendorItems = vendorGroups[vendorId];
+  const profile = vendorItems[0]?.product?.shipping_profile;
+
+  if (!profile) continue;
+
+  const vendorSubtotal = vendorItems.reduce((sum: number, item) => {
+    return sum + item.product.price * item.quantity;
+  }, 0);
+
+  if (
+    profile.free_shipping_threshold &&
+    vendorSubtotal >= profile.free_shipping_threshold
+  ) {
+    continue;
+  }
+
+  shippingCost +=
+    shippingMethod === "express"
+      ? profile.express_cost ?? 0
+      : profile.standard_cost ?? 0;
+}
 
     const subtotal = validItems.reduce((sum, item) => {
       const price = Number(item.product.price ?? 0);
@@ -295,6 +342,13 @@ export async function POST(req: NextRequest) {
         customer_email: customer?.email,
 
         line_items,
+
+        shipping_address_collection: {
+  allowed_countries: [
+    "AU","US","GB","CA","NZ","DE","FR","IT","ES","NL","SE","NO","DK","FI",
+    "IE","SG","JP","HK","AE","IN","BR","MX","ZA"
+  ],
+},
 
 payment_intent_data: {
   metadata: {

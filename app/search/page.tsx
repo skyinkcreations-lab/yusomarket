@@ -241,7 +241,7 @@ const handleAddToCart = async (product: Product, variantId: string | null) => {
 
       <section
         style={{
-          background: "#385fa2",
+          background: "#31538e",
           color: "#fff",
           padding: "60px 0 52px",
         }}
@@ -492,7 +492,7 @@ transform:scale(1.05);
 position:absolute;
 top:10px;
 left:10px;
-background:#385fa2;
+background:#31538e;
 color:white;
 font-size:10.5px;
 font-weight:800;
@@ -545,7 +545,7 @@ width:38px;
 height:38px;
 border-radius:12px;
 border:none;
-background:#2563eb;
+background:#31538e;
 color:white;
 display:flex;
 align-items:center;
@@ -662,7 +662,7 @@ cursor:pointer;
 }
 
 .quickview-vendor a {
-  color: #2563eb;
+  color: #31538e;
   text-decoration: none;
   font-weight: 600;
 }
@@ -703,14 +703,12 @@ cursor:pointer;
   color: #ffffff;
   font-size: 14.5px;
   font-weight: 750;
-  box-shadow: 0 10px 24px rgba(56,95,162,0.35);
   cursor: pointer;
   transition: all .25s ease;
 }
 
 .quickview-add:hover {
-  background: linear-gradient(135deg, #fc8700, #e67600);
-  box-shadow: 0 14px 30px rgba(252,135,0,0.45);
+  background: linear-gradient(135deg, #27457a, #27457a);
   transform: translateY(-1px);
 }
 
@@ -857,7 +855,7 @@ cursor:pointer;
 }
 
 .cart-toast.success {
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: linear-gradient(135deg, #31538e, #31538e);
 }
 
 .cart-toast.error {

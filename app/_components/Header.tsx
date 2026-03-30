@@ -464,7 +464,7 @@ useEffect(() => {
                                 style={{
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  color: "#16a34a",
+                                  color: "#31538e",
                                   marginTop: 2,
                                 }}
                               >
@@ -504,22 +504,22 @@ useEffect(() => {
           >
             <Link href={accountHref} aria-label="Account" style={{ display: "inline-flex" }}>
               {loggedIn ? (
-                <div
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 999,
-                    background: "linear-gradient(135deg, #ff7a00, #ff9f2f)",
-                    boxShadow: "0 6px 14px rgba(0,0,0,0.16)",
-                    color: "#fff",
-                    fontSize: 14,
-                    fontWeight: 800,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    userSelect: "none",
-                  }}
-                >
+<div
+  style={{
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "#31538e",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: 700,
+    userSelect: "none",
+  }}
+>
                   {avatarLetter || "U"}
                 </div>
               ) : (
@@ -931,7 +931,7 @@ useEffect(() => {
                         >
                           {product.name}
                         </div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#31538e" }}>
                           ${product.price}
                         </div>
                       </div>

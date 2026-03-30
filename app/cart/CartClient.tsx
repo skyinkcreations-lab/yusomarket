@@ -411,7 +411,7 @@ if (!validateAddress()) {
 
         <input
           type="email"
-          placeholder="Email or mobile number"
+          placeholder="Email"
           style={inputBase}
           value={address.email}
           onChange={(e) =>
@@ -508,7 +508,26 @@ if (!validateAddress()) {
             Standard (3–5 days)
           </div>
 <strong>
-{shippingMethod === "standard" ? formatMoney(shippingCost) : ""}
+{formatMoney(
+  Object.values(vendorGroups).reduce((total, items) => {
+    const profile = items[0]?.product?.shipping_profile;
+    if (!profile) return total;
+
+    const vendorSubtotal = items.reduce((sum, item) => {
+      const price = item.product?.price ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
+
+    if (
+      profile.free_shipping_threshold &&
+      vendorSubtotal >= profile.free_shipping_threshold
+    ) {
+      return total;
+    }
+
+    return total + (profile.standard_cost ?? 0);
+  }, 0)
+)}
 </strong>
         </label>
 
@@ -523,7 +542,26 @@ if (!validateAddress()) {
             Express (1–2 days)
           </div>
 <strong>
-{shippingMethod === "express" ? formatMoney(shippingCost) : ""}
+{formatMoney(
+  Object.values(vendorGroups).reduce((total, items) => {
+    const profile = items[0]?.product?.shipping_profile;
+    if (!profile) return total;
+
+    const vendorSubtotal = items.reduce((sum, item) => {
+      const price = item.product?.price ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
+
+    if (
+      profile.free_shipping_threshold &&
+      vendorSubtotal >= profile.free_shipping_threshold
+    ) {
+      return total;
+    }
+
+    return total + (profile.express_cost ?? 0);
+  }, 0)
+)}
 </strong>
         </label>
 
@@ -718,7 +756,7 @@ if (!validateAddress()) {
           </div>
 
           <div style={totalRowBase}>
-            <span>Estimated taxes (10%)</span>
+            <span>Estimated GST (10%)</span>
             <span>{formatMoney(tax)}</span>
           </div>
 

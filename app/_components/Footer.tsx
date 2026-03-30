@@ -53,14 +53,12 @@ export default function Footer() {
               <h3>Support</h3>
               <Link href="/returns">Returns & Refunds</Link>
               <Link href="/faq">FAQ</Link>
-              <Link href="/contact">Contact Us</Link>
             </div>
 
             {/* SELL */}
             <div>
               <h3>Sell on YusoMarket</h3>
               <Link href="/sell">Become a Vendor</Link>
-              <Link href="/vendor-login">Vendor Login</Link>
             </div>
 
             {/* LEGAL */}
